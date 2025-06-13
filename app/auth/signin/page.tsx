@@ -119,7 +119,7 @@ export default function SignIn() {
           Don't have an account?{" "}
           <Link
             className="text-sub-description font-source-sans underline text-foreground"
-            href="#"
+            href="/auth/signup"
           >
             Sign up
           </Link>
