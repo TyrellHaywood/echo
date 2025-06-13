@@ -10,7 +10,7 @@ export async function middleware(req: NextRequest) {
   } = await supabase.auth.getSession()
 
   if (req.nextUrl.pathname.startsWith('/home') && !session) {
-    return NextResponse.redirect(new URL('/login', req.url))
+    return NextResponse.redirect(new URL('/auth/signin', req.url))
   }
 
   return res
