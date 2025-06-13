@@ -19,14 +19,14 @@ export default function SignIn() {
   const { user, signIn, loading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (user) {
-      router.push("/");
-    }
-  }, [user, router]);
+  // useEffect(() => {
+  //   if (user) {
+  //     router.push("/");
+  //   }
+  // }, [user, router]);
 
   return (
-    <div className="md:flex min-h-screen bg-background">
+    <div className="md:flex items-center justify-center px-6 py-24 min-h-screen bg-background">
       {/* Logo */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0">
         <Logo className="w-8 h-8" />
@@ -39,10 +39,45 @@ export default function SignIn() {
           <h1 className="text-header font-plex-serif">Sign in</h1>
         </div>
 
+        {/* Email and password inputs */}
+        <div className="space-y-4">
+          <Input placeholder="Email" />
+          <Input type="password" placeholder="Password" />
+        </div>
+
+        {/* Keep signed in and forgot password */}
+        <div className="flex justify-between">
+          <div className="flex items-center space-x-2">
+            <Checkbox id="keep-signed-in" />
+            <Label htmlFor="keep-signed-in">Keep me signed in</Label>
+          </div>
+          <Link
+            href="#"
+            className="text-sm text-muted-foreground hover:text-foreground underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
+        {/* Sign-in button */}
+        <Button className="w-full">Sign in</Button>
+
+        {/* Separator */}
+        <div className="w-full relative">
+          <div className="text-sub-description font-source-sans text-muted-foreground bg-background px-2 uppercase absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            Or
+          </div>
+          <Separator />
+        </div>
+
         {/* Social sign-in buttons */}
         <div className="space-y-2">
           {/* Google sign-in button */}
-          <Button variant="outline" className="w-full">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => signIn("google")}
+          >
             <svg
               width="16"
               height="16"
@@ -77,73 +112,15 @@ export default function SignIn() {
 
             <span>Sign in with Google</span>
           </Button>
-
-          {/* Apple sign-in button */}
-          <Button variant="outline" className="w-full text-foreground">
-            <svg
-              width="17"
-              height="16"
-              viewBox="0 0 17 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <g clipPath="url(#clip0_772_457)">
-                <path
-                  d="M15.0281 12.469C14.7862 13.028 14.4998 13.5426 14.1679 14.0157C13.7156 14.6606 13.3452 15.107 13.0598 15.3549C12.6173 15.7618 12.1433 15.9702 11.6357 15.982C11.2712 15.982 10.8317 15.8783 10.3201 15.668C9.80687 15.4586 9.33518 15.3549 8.90389 15.3549C8.45156 15.3549 7.96644 15.4586 7.44754 15.668C6.92785 15.8783 6.5092 15.9879 6.18911 15.9988C5.70231 16.0195 5.21709 15.8052 4.73276 15.3549C4.42364 15.0853 4.03698 14.623 3.57379 13.9683C3.07681 13.269 2.66823 12.4582 2.34815 11.5338C2.00534 10.5353 1.8335 9.56838 1.8335 8.63231C1.8335 7.56005 2.06519 6.63524 2.52928 5.86025C2.89401 5.23775 3.37922 4.7467 3.98651 4.38622C4.5938 4.02574 5.24998 3.84204 5.95662 3.83028C6.34328 3.83028 6.85032 3.94989 7.48043 4.18494C8.10875 4.42079 8.5122 4.54039 8.68908 4.54039C8.82132 4.54039 9.2695 4.40054 10.0293 4.12173C10.7478 3.86317 11.3542 3.75611 11.851 3.79829C13.1971 3.90692 14.2084 4.43757 14.881 5.3936C13.6771 6.12306 13.0815 7.14475 13.0934 8.45543C13.1042 9.47634 13.4746 10.3259 14.2025 11.0004C14.5323 11.3135 14.9007 11.5555 15.3106 11.7273C15.2217 11.9851 15.1279 12.232 15.0281 12.469V12.469ZM11.9408 0.320267C11.9408 1.12045 11.6485 1.86758 11.0658 2.55911C10.3626 3.38121 9.51207 3.85626 8.58972 3.7813C8.57797 3.6853 8.57116 3.58427 8.57116 3.4781C8.57116 2.70992 8.90557 1.88782 9.49942 1.21565C9.79591 0.875312 10.173 0.592328 10.6303 0.366586C11.0865 0.144212 11.5181 0.0212348 11.924 0.000175476C11.9359 0.107147 11.9408 0.214126 11.9408 0.320256V0.320267Z"
-                  fill="currentColor"
-                />
-              </g>
-              <defs>
-                <clipPath id="clip0_772_457">
-                  <rect
-                    width="16"
-                    height="16"
-                    fill="white"
-                    transform="translate(0.5)"
-                  />
-                </clipPath>
-              </defs>
-            </svg>
-
-            <span>Sign in with Apple</span>
-          </Button>
         </div>
-
-        {/* Separator */}
-        <div className="w-full relative">
-          <div className="text-xs text-muted-foreground bg-background px-2 uppercase absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-            Or
-          </div>
-          <Separator />
-        </div>
-
-        {/* Email and password inputs */}
-        <div className="space-y-4">
-          <Input placeholder="Email" />
-          <Input type="password" placeholder="Password" />
-        </div>
-
-        {/* Keep signed in and forgot password */}
-        <div className="flex justify-between">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="keep-signed-in" />
-            <Label htmlFor="keep-signed-in">Keep me signed in</Label>
-          </div>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground underline"
-          >
-            Forgot password?
-          </Link>
-        </div>
-
-        {/* Sign-in button */}
-        <Button className="w-full">Sign in</Button>
 
         {/* Sign-up link */}
-        <p className="text-sm text-center text-muted-foreground">
+        <p className="text-sub-description font-source-sans text-center text-muted-foreground">
           Don't have an account?{" "}
-          <Link className="underline text-foreground" href="#">
+          <Link
+            className="text-sub-description font-source-sans underline text-foreground"
+            href="/auth/signup"
+          >
             Sign up
           </Link>
         </p>

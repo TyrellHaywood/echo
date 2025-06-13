@@ -24,10 +24,10 @@ module.exports = {
 		fontSize: {
 			'header': ['36px', { lineHeight: '1.2', fontWeight: '400' }],
 			'title': ['30px', { lineHeight: '1.3', fontWeight: '400' }],
-			'profile-name': ['24px', { lineHeight: '1.4', fontWeight: '400' }],
+			'sub-title': ['24px', { lineHeight: '1.4', fontWeight: '400' }],
 			'description': ['16px', { lineHeight: '1.5', fontWeight: '400' }],
-			'pronouns': ['14px', { lineHeight: '1.4', fontWeight: '400' }],
-			'status-tags': ['12px', { lineHeight: '1.3', fontWeight: '400' }],
+			'sub-description': ['14px', { lineHeight: '1.4', fontWeight: '400' }],
+			'status': ['12px', { lineHeight: '1.3', fontWeight: '400' }],
 			'metadata': ['12px', { lineHeight: '1.3', fontWeight: '300' }],
 		},
   		colors: {
