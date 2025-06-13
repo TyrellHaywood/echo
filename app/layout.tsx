@@ -1,17 +1,23 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Echo",
   description: "",
   manifest: "/manifest.json",
-  themeColor: "#9FCA53",
-  viewport:
-    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Echo",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#9FCA53",
 };
 
 export default function RootLayout({
@@ -23,6 +29,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <link rel="icon" href="/logo-placeholder.svg" />
       </head>
       <body>{children}</body>
     </html>
