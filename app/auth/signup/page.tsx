@@ -3,7 +3,7 @@
 // Dependencies
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // UI Components
 import { Logo } from "@/components/logo";
@@ -15,15 +15,199 @@ import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import Link from "next/link";
 
+// Icons
+import { Mail, Phone } from "lucide-react";
+
 export default function SignUp() {
-  const { user, signIn, loading } = useAuth();
+  const {
+    user,
+    signIn,
+    signUp,
+    signInWithEmail,
+    signUpWithPhone,
+    verifyPhone,
+    loading,
+  } = useAuth();
   const router = useRouter();
+
+  const [type, setType] = useState<"email" | "phone">("email");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [isCodeSent, setIsCodeSent] = useState(false);
+  const [phonePassword, setPhonePassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // useEffect(() => {
   //   if (user) {
   //     router.push("/");
   //   }
   // }, [user, router]);
+
+  const handleEmailSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setError("");
+
+    const { error } = await signUp(email, password);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push("/dashboard"); // Direct signup, no email verification needed
+    }
+
+    setAuthLoading(false);
+  };
+
+  const handlePhoneVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setError("");
+
+    const { error } = await signUpWithPhone(phone);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setIsCodeSent(true);
+      setError("Verification code sent!");
+    }
+
+    setAuthLoading(false);
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setError("");
+
+    const { error } = await verifyPhone(phone, verificationCode);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setIsPhoneVerified(true);
+      setError("Phone verified! Now set your password.");
+    }
+
+    setAuthLoading(false);
+  };
+
+  const handlePhoneSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setError("");
+
+    // At this point phone is verified, create account with phone + password
+    const { error } = await signUp(phone, phonePassword);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push("/dashboard");
+    }
+
+    setAuthLoading(false);
+  };
+
+  const renderEmailInputs = () => (
+    <form onSubmit={handleEmailSignup} className="space-y-4">
+      <Input
+        placeholder="Email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+      <Input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
+      {error && <div className="text-red-500 text-sm">{error}</div>}
+      <Button type="submit" className="w-full" disabled={authLoading}>
+        {authLoading ? "Creating..." : "Sign up"}
+      </Button>
+    </form>
+  );
+
+  const renderPhoneInputs = () => {
+    if (!isCodeSent) {
+      // Step 1: Enter phone number
+      return (
+        <form onSubmit={handlePhoneVerification} className="space-y-4">
+          <Input
+            placeholder="Phone Number"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+          />
+          {error && (
+            <div className="text-sm text-muted-foreground">{error}</div>
+          )}
+          <Button
+            type="submit"
+            variant="outline"
+            className="w-full"
+            disabled={authLoading}
+          >
+            {authLoading ? "Sending..." : "Send Phone Verification"}
+          </Button>
+        </form>
+      );
+    } else if (!isPhoneVerified) {
+      // Step 2: Verify phone with code
+      return (
+        <form onSubmit={handleVerifyCode} className="space-y-4">
+          <Input placeholder="Phone Number" type="tel" value={phone} disabled />
+          <Input
+            placeholder="Verification Code"
+            type="text"
+            value={verificationCode}
+            onChange={(e) => setVerificationCode(e.target.value)}
+            maxLength={6}
+            required
+          />
+          {error && (
+            <div className="text-sm text-muted-foreground">{error}</div>
+          )}
+          <Button
+            type="submit"
+            variant="outline"
+            className="w-full"
+            disabled={authLoading}
+          >
+            {authLoading ? "Verifying..." : "Verify Code"}
+          </Button>
+        </form>
+      );
+    } else {
+      // Step 3: Phone verified, now set password and signup
+      return (
+        <form onSubmit={handlePhoneSignup} className="space-y-4">
+          <Input placeholder="Phone Number" type="tel" value={phone} disabled />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={phonePassword}
+            onChange={(e) => setPhonePassword(e.target.value)}
+            required
+          />
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+          <Button type="submit" className="w-full" disabled={authLoading}>
+            {authLoading ? "Creating..." : "Sign up"}
+          </Button>
+        </form>
+      );
+    }
+  };
 
   return (
     <div className="md:flex items-center justify-center px-6 py-24 min-h-screen bg-background">
@@ -32,37 +216,38 @@ export default function SignUp() {
         <Logo className="w-8 h-8" />
       </div>
 
-      {/* Sign-in form container */}
+      {/* Sign-up form container */}
       <div className="w-full max-w-sm space-y-6 m-auto">
         {/* Header */}
         <div className="text-left md:text-center">
           <h1 className="text-header font-plex-serif">Create an account</h1>
         </div>
 
-        {/* Email and password inputs */}
+        {/* Sign up type */}
+        <Button
+          variant="ghost"
+          className="hover:bg-transparent text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            setType(type === "email" ? "phone" : "email");
+            // Reset states when switching
+            setEmail("");
+            setPassword("");
+            setPhone("");
+            setVerificationCode("");
+            setIsPhoneVerified(false);
+            setIsCodeSent(false);
+            setPhonePassword("");
+            setError("");
+          }}
+        >
+          {type === "email" ? <Mail /> : <Phone />}
+          {type === "email" ? "Use Email" : "Use Phone"}
+        </Button>
+
+        {/* Email/Phone and password inputs */}
         <div className="space-y-4">
-          <Input placeholder="Email" />
-          <Input type="password" placeholder="Password" />
+          {type === "email" ? renderEmailInputs() : renderPhoneInputs()}
         </div>
-
-        {/* Keep signed in and forgot password */}
-        <div className="flex justify-between">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="tos" />
-            <Label
-              htmlFor="tos"
-              className="text-metadata text-muted-foreground"
-            >
-              By continuing you agree to our{" "}
-              <span className="underline text-foreground/70">
-                Terms of Service
-              </span>
-            </Label>
-          </div>
-        </div>
-
-        {/* Sign-in button */}
-        <Button className="w-full">Sign up</Button>
 
         {/* Separator */}
         <div className="w-full relative">
