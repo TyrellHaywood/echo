@@ -1,7 +1,7 @@
 "use client";
 
 // Dependencies
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase";
@@ -15,13 +15,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
 // Icons
-import { ArrowRight, ArrowLeft, Upload } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check } from "lucide-react";
 
 // Types
 interface ProfileData {
   username: string;
   name: string;
-  avatar_url: string;
   pronouns: string;
   bio: string;
   interests: string[];
@@ -36,12 +35,12 @@ export default function SetupProfile() {
   const [currentInterest, setCurrentInterest] = useState("");
   const [uploading, setUploading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>("");
 
   // Temporary profile data
   const [profileData, setProfileData] = useState<ProfileData>({
     username: "",
     name: "",
-    avatar_url: "",
     pronouns: "",
     bio: "",
     interests: [],
@@ -61,39 +60,22 @@ export default function SetupProfile() {
       [field]: value,
     }));
   };
-
-  const handleAvatarUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
-    setUploading(true);
     setError("");
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatar")
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatar").getPublicUrl(fileName);
-
-      setProfileData((prev) => ({
-        ...prev,
-        avatar_url: publicUrl,
-      }));
+      // Store the file locally for preview
       setAvatarFile(file);
+
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarPreview(previewUrl);
+      console.log("Avatar preview created successfully");
     } catch (error: any) {
       setError(error.message);
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -124,12 +106,34 @@ export default function SetupProfile() {
     setError("");
 
     try {
+      let avatarUrl = "";
+
+      // Upload avatar if one was selected
+      if (avatarFile) {
+        setUploading(true);
+        const fileExt = avatarFile.name.split(".").pop();
+        const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("avatar")
+          .upload(fileName, avatarFile);
+
+        if (uploadError) throw uploadError;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("avatar").getPublicUrl(fileName);
+
+        avatarUrl = publicUrl;
+        setUploading(false);
+      }
+
       const { error } = await supabase
         .from("profiles")
         .update({
           username: profileData.username,
           name: profileData.name,
-          avatar_url: profileData.avatar_url,
+          avatar_url: avatarUrl,
           pronouns: profileData.pronouns,
           bio: profileData.bio,
           interests: profileData.interests,
@@ -144,6 +148,7 @@ export default function SetupProfile() {
       setError(error.message);
     } finally {
       setLoading(false);
+      setUploading(false);
     }
   };
 
@@ -156,29 +161,26 @@ export default function SetupProfile() {
         return (
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
+              {avatarPreview && (
+                <div className="flex flex-col items-center gap-2">
+                  <Image
+                    src={avatarPreview}
+                    alt="Avatar preview"
+                    width={64}
+                    height={64}
+                    className="rounded-md object-cover w-full max-w-64 max-h-64"
+                  />
+                  <span className="flex flex-row items-center gap-1 text-status text-green-600">
+                    <Check size={16} /> Selected
+                  </span>
+                </div>
+              )}
               <Input
                 type="file"
                 accept="image/*"
                 onChange={handleAvatarUpload}
-                disabled={uploading}
-                className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                className="file:rounded-sm file:bg-muted hover:file:bg-muted/70"
               />
-              {uploading && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Upload className="h-4 w-4 animate-spin" />
-                  Uploading...
-                </div>
-              )}
-              {profileData.avatar_url && (
-                <div className="flex items-center gap-2">
-                  <img
-                    src={profileData.avatar_url}
-                    alt="Avatar preview"
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                  <span className="text-sm text-green-600">✓ Uploaded</span>
-                </div>
-              )}
             </div>
           </div>
         );
@@ -253,7 +255,7 @@ export default function SetupProfile() {
                     variant="ghost"
                     className="p-0 w-auto h-auto"
                   >
-                    ×
+                    x
                   </Button>
                 </Badge>
               ))}
@@ -264,13 +266,6 @@ export default function SetupProfile() {
       case 6: // Preview
         return (
           <div className="space-y-4">
-            <Image
-              src={profileData.avatar_url}
-              alt="Profile Picture Preview"
-              width={400}
-              height={400}
-              className=""
-            />
             <div>
               <span>Username:</span> {profileData.username}
             </div>
@@ -282,17 +277,23 @@ export default function SetupProfile() {
             </div>
             <div>
               <span>Bio:</span> {profileData.bio}
-            </div>
-            {profileData.avatar_url && (
-              <div>
-                <span>Profile Picture:</span>
-                <img
-                  src={profileData.avatar_url}
+            </div>{" "}
+            <div>
+              <span>Profile Picture:</span>
+              {avatarPreview ? (
+                <Image
+                  src={avatarPreview}
                   alt="Avatar preview"
-                  className="w-16 h-16 rounded-full object-cover mt-2"
+                  width={64}
+                  height={64}
+                  className="rounded-md object-cover w-full max-w-64 max-h-64"
                 />
-              </div>
-            )}
+              ) : (
+                <div className="text-red-500 mt-2">
+                  No profile image selected
+                </div>
+              )}
+            </div>
             <div>
               <span>Interests:</span>
               <div className="flex flex-wrap gap-2">
@@ -312,6 +313,15 @@ export default function SetupProfile() {
     }
   };
 
+  // Cleanup avatar preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
+
   return (
     <div className="h-screen flex flex-col items-center justify-center gap-16">
       {/* Header */}
@@ -329,8 +339,8 @@ export default function SetupProfile() {
 
       <div className="w-full flex justify-end md:justify-center">
         {currentStep === setupProfile.length - 1 ? (
-          <Button onClick={handleSubmitProfile} disabled={loading}>
-            {loading ? "Saving..." : "Complete Setup"}
+          <Button onClick={handleSubmitProfile} disabled={loading || uploading}>
+            {loading || uploading ? "Saving..." : "Complete Setup"}
           </Button>
         ) : (
           <div
