@@ -245,15 +245,15 @@ export default function SetupProfile() {
               {profileData.interests.map((interest) => (
                 <Badge
                   key={interest}
-                  variant="secondary"
-                  className="flex flex-row gap-2"
+                  variant="outline"
+                  className="flex flex-row gap-1"
                 >
                   {interest}
                   <Button
                     onClick={() => removeInterest(interest)}
                     size="icon"
                     variant="ghost"
-                    className="p-0 w-auto h-auto"
+                    className="py-0 px-1 w-auto h-auto hover:bg-transparent text-muted-foreground hover:text-foreground"
                   >
                     x
                   </Button>
@@ -265,21 +265,8 @@ export default function SetupProfile() {
 
       case 6: // Preview
         return (
-          <div className="space-y-4">
-            <div>
-              <span>Username:</span> {profileData.username}
-            </div>
-            <div>
-              <span>Name:</span> {profileData.name}
-            </div>
-            <div>
-              <span>Pronouns:</span> {profileData.pronouns}
-            </div>
-            <div>
-              <span>Bio:</span> {profileData.bio}
-            </div>{" "}
-            <div>
-              <span>Profile Picture:</span>
+          <div className="space-y-2 text-center">
+            <div className="flex justify-center">
               {avatarPreview ? (
                 <Image
                   src={avatarPreview}
@@ -294,11 +281,25 @@ export default function SetupProfile() {
                 </div>
               )}
             </div>
+            <div className="text-title font-plex-serif">
+              {profileData.username}
+            </div>
+            <div className="flex flex-row gap-2 items-end justify-center">
+              <div className="text-description font-source-sans">
+                {profileData.name}
+              </div>
+              •
+              <div className="text-description font-source-sans">
+                {profileData.pronouns}
+              </div>
+            </div>
+            <div className="text-description font-source-sans">
+              {profileData.bio}
+            </div>{" "}
             <div>
-              <span>Interests:</span>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 justify-center items-center">
                 {profileData.interests.map((interest) => (
-                  <Badge key={interest} variant="secondary">
+                  <Badge key={interest} variant="outline">
                     {interest}
                   </Badge>
                 ))}
