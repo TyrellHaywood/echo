@@ -28,9 +28,9 @@ export default function SignIn() {
   return (
     <div className="md:flex items-center justify-center px-6 py-24 min-h-screen bg-background">
       {/* Logo */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0">
+      {/* <div className="absolute top-4 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0">
         <Logo className="w-8 h-8" />
-      </div>
+      </div> */}
 
       {/* Sign-in form container */}
       <div className="w-full max-w-sm space-y-6 m-auto">
