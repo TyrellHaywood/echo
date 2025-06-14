@@ -16,7 +16,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 // Icons
-import { Mail, Phone } from "lucide-react";
+import { Mail, Smartphone } from "lucide-react";
 
 export default function SignUp() {
   const {
@@ -212,9 +212,9 @@ export default function SignUp() {
   return (
     <div className="md:flex items-center justify-center px-6 py-24 min-h-screen bg-background">
       {/* Logo */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0">
+      {/* <div className="absolute top-4 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0">
         <Logo className="w-8 h-8" />
-      </div>
+      </div> */}
 
       {/* Sign-up form container */}
       <div className="w-full max-w-sm space-y-6 m-auto">
@@ -222,30 +222,31 @@ export default function SignUp() {
         <div className="text-left md:text-center">
           <h1 className="text-header font-plex-serif">Create an account</h1>
         </div>
-
-        {/* Sign up type */}
-        <Button
-          variant="ghost"
-          className="hover:bg-transparent text-muted-foreground hover:text-foreground"
-          onClick={() => {
-            setType(type === "email" ? "phone" : "email");
-            // Reset states when switching
-            setEmail("");
-            setPassword("");
-            setPhone("");
-            setVerificationCode("");
-            setIsPhoneVerified(false);
-            setIsCodeSent(false);
-            setPhonePassword("");
-            setError("");
-          }}
-        >
-          {type === "email" ? <Mail /> : <Phone />}
-          {type === "email" ? "Use Email" : "Use Phone"}
-        </Button>
-
         {/* Email/Phone and password inputs */}
-        <div className="space-y-4">
+        <div className="">
+          <div className="w-full flex justify-end">
+            {/* Sign up type */}
+            <Button
+              variant="ghost"
+              className="hover:bg-transparent text-muted-foreground hover:text-foreground pr-0"
+              onClick={() => {
+                setType(type === "email" ? "phone" : "email");
+                // Reset states when switching
+                setEmail("");
+                setPassword("");
+                setPhone("");
+                setVerificationCode("");
+                setIsPhoneVerified(false);
+                setIsCodeSent(false);
+                setPhonePassword("");
+                setError("");
+              }}
+              disabled
+            >
+              {type === "email" ? <Smartphone /> : <Mail />}
+              {type === "email" ? "Use Phone" : "Use Email"}
+            </Button>
+          </div>
           {type === "email" ? renderEmailInputs() : renderPhoneInputs()}
         </div>
 

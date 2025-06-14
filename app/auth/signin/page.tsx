@@ -3,7 +3,7 @@
 // Dependencies
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // UI Components
 import { Logo } from "@/components/logo";
@@ -16,8 +16,13 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default function SignIn() {
-  const { user, signIn, loading } = useAuth();
+  const { user, signIn, signInWithEmail, loading } = useAuth();
   const router = useRouter();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // useEffect(() => {
   //   if (user) {
@@ -25,12 +30,28 @@ export default function SignIn() {
   //   }
   // }, [user, router]);
 
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setError("");
+
+    const { error } = await signInWithEmail(email, password);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push("/");
+    }
+
+    setAuthLoading(false);
+  };
+
   return (
     <div className="md:flex items-center justify-center px-6 py-24 min-h-screen bg-background">
       {/* Logo */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0">
+      {/* <div className="absolute top-4 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0">
         <Logo className="w-8 h-8" />
-      </div>
+      </div> */}
 
       {/* Sign-in form container */}
       <div className="w-full max-w-sm space-y-6 m-auto">
@@ -40,27 +61,43 @@ export default function SignIn() {
         </div>
 
         {/* Email and password inputs */}
-        <div className="space-y-4">
-          <Input placeholder="Email" />
-          <Input type="password" placeholder="Password" />
-        </div>
+        <form onSubmit={handleEmailSignIn} className="space-y-4">
+          <Input
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        {/* Keep signed in and forgot password */}
-        <div className="flex justify-between">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="keep-signed-in" />
-            <Label htmlFor="keep-signed-in">Keep me signed in</Label>
+          {/* Keep signed in and forgot password */}
+          <div className="flex justify-between">
+            <div className="flex items-center space-x-2">
+              <Checkbox id="keep-signed-in" />
+              <Label htmlFor="keep-signed-in">Keep me signed in</Label>
+            </div>
+            <Link
+              href="#"
+              className="text-sm text-muted-foreground hover:text-foreground underline"
+            >
+              Forgot password?
+            </Link>
           </div>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground underline"
-          >
-            Forgot password?
-          </Link>
-        </div>
 
-        {/* Sign-in button */}
-        <Button className="w-full">Sign in</Button>
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+
+          {/* Sign-in button */}
+          <Button type="submit" className="w-full" disabled={authLoading}>
+            {authLoading ? "Signing in..." : "Sign in"}
+          </Button>
+        </form>
 
         {/* Separator */}
         <div className="w-full relative">
