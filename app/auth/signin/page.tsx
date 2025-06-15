@@ -2,6 +2,8 @@
 
 // Dependencies
 import { useAuth } from "@/components/AuthProvider";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Database } from "@/types/supabase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -18,6 +20,7 @@ import Link from "next/link";
 export default function SignIn() {
   const { user, signIn, signInWithEmail, loading } = useAuth();
   const router = useRouter();
+  const supabase = createClientComponentClient<Database>();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,17 +38,70 @@ export default function SignIn() {
     setAuthLoading(true);
     setError("");
 
-    const { error } = await signInWithEmail(email, password);
+    try {
+      const { data: signInData, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push("/");
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+
+      if (!signInData || !signInData.session) {
+        console.error("No session returned from signInWithPassword");
+        setError(
+          "Authentication succeeded but session could not be established. Please try again."
+        );
+        return;
+      }
+
+      const session = signInData.session;
+      const userId = session.user.id;
+
+      // Check if the user already has a profile
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (fetchError && fetchError.code !== "PGRST116") {
+        console.error("Error fetching profile:", fetchError);
+        setError("Error fetching your profile. Please try again.");
+        return;
+      }
+
+      // If no profile exists, create one with default values
+      if (!existingProfile) {
+        const { error: insertError } = await supabase.from("profiles").insert([
+          {
+            id: userId,
+            email: session.user.email,
+            finished_setup: false,
+          },
+        ]);
+
+        if (insertError) {
+          console.error("Error creating profile:", insertError);
+          setError("Error creating your profile. Please try again.");
+          return;
+        }
+        router.replace("/setup-profile");
+      } else if (existingProfile.finished_setup === false) {
+        router.replace("/setup-profile");
+      } else {
+        router.replace("/home");
+      }
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setAuthLoading(false);
     }
-
-    setAuthLoading(false);
   };
-
   return (
     <div className="md:flex items-center justify-center px-6 py-24 min-h-screen bg-background">
       {/* Logo */}

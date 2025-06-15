@@ -57,7 +57,7 @@ export default function SignUp() {
     if (error) {
       setError(error.message);
     } else {
-      router.push("/dashboard"); // Direct signup, no email verification needed
+      router.push("/"); // Direct signup, no email verification needed
     }
 
     setAuthLoading(false);
@@ -108,7 +108,7 @@ export default function SignUp() {
     if (error) {
       setError(error.message);
     } else {
-      router.push("/dashboard");
+      router.push("/");
     }
 
     setAuthLoading(false);
