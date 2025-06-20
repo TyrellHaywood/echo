@@ -24,7 +24,49 @@ export default function Adjustments({
 }: AdjustmentsProps) {
   const [buttonText, setButtonText] = useState("Play");
   const [audioSrc, setAudioSrc] = useState<string>("");
+  const [waveformData, setWaveformData] = useState<number[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  const generateWaveform = async (file: File) => {
+    setIsAnalyzing(true);
+    try {
+      const audioContext = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+      const arrayBuffer = await file.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      const rawData = audioBuffer.getChannelData(0); // Get first channel
+      const samples = 100; // Number of bars in waveform
+      const blockSize = Math.floor(rawData.length / samples);
+      const filteredData: number[] = [];
+
+      for (let i = 0; i < samples; i++) {
+        let sum = 0;
+        for (let j = 0; j < blockSize; j++) {
+          sum += Math.abs(rawData[i * blockSize + j]);
+        }
+        filteredData.push(sum / blockSize);
+      }
+
+      // Normalize the data to 0-1 range
+      const maxValue = Math.max(...filteredData);
+      const normalizedData = filteredData.map((value) => value / maxValue);
+
+      setWaveformData(normalizedData);
+      console.log("Waveform generated successfully");
+    } catch (error) {
+      console.error("Error generating waveform:", error);
+      // Fallback to fake waveform data
+      const fallbackData = Array.from(
+        { length: 100 },
+        (_, i) => 0.2 + Math.sin(i * 0.3) * 0.3 + Math.random() * 0.2
+      );
+      setWaveformData(fallbackData);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handlePlay = () => {
     const audio = audioRef.current;
@@ -93,11 +135,15 @@ export default function Adjustments({
       const audioUrl = URL.createObjectURL(audioFile);
       setAudioSrc(audioUrl);
 
+      // Generate waveform for the new file
+      generateWaveform(audioFile);
+
       return () => {
         URL.revokeObjectURL(audioUrl);
       };
     } else {
       setAudioSrc("");
+      setWaveformData([]);
     }
   }, [audioFile]);
 
@@ -139,9 +185,31 @@ export default function Adjustments({
 
             {/* Audio Track with Trim Handles */}
             <div className="flex-1 relative rounded-md">
-              {/* Yellow track container */}
+              {/* Waveform track container */}
               <div className="h-9 bg-transparent rounded-md border border-input relative overflow-hidden">
-                {/* TODO: Audio waveform representation */}
+                {/* Waveform visualization */}
+                <div className="absolute inset-0 flex items-center justify-center px-1">
+                  {isAnalyzing ? (
+                    <div className="text-xs text-muted-foreground">
+                      Analyzing audio...
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-end justify-between px-1">
+                      {waveformData.map((amplitude, i) => (
+                        <div
+                          key={i}
+                          className="bg-[#46b1c9] rounded-sm" // TODO: Use random array of colors in theme
+                          style={{
+                            width: `${100 / waveformData.length}%`,
+                            height: `${20 + amplitude * 60}%`, // Scale amplitude to 20-80% height
+                            opacity: 0.8,
+                            marginRight: "1px",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* Left trim handle */}
                 <div
