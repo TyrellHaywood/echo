@@ -111,35 +111,44 @@ export default function SetupProfile() {
       // Upload avatar if one was selected
       if (avatarFile) {
         setUploading(true);
+
         const fileExt = avatarFile.name.split(".").pop();
-        const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+        const fileName = `${user.id}/avatar.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
-          .from("avatar")
-          .upload(fileName, avatarFile);
+          .from("avatars")
+          .upload(fileName, avatarFile, {
+            cacheControl: "3600",
+            upsert: true,
+          });
 
         if (uploadError) throw uploadError;
 
         const {
           data: { publicUrl },
-        } = supabase.storage.from("avatar").getPublicUrl(fileName);
+        } = supabase.storage.from("avatars").getPublicUrl(fileName);
 
         avatarUrl = publicUrl;
         setUploading(false);
       }
 
+      // Create and save profile data
+      const profileUpdateData = {
+        id: user.id,
+        username: profileData.username,
+        name: profileData.name,
+        avatar_url: avatarUrl || null,
+        pronouns: profileData.pronouns,
+        bio: profileData.bio,
+        interests: profileData.interests,
+        updated_at: new Date().toISOString(),
+      };
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          username: profileData.username,
-          name: profileData.name,
-          avatar_url: avatarUrl,
-          pronouns: profileData.pronouns,
-          bio: profileData.bio,
-          interests: profileData.interests,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
+        .upsert(profileUpdateData, {
+          onConflict: "id",
+        });
 
       if (error) throw error;
 
