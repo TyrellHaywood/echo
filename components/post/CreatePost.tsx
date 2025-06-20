@@ -1,7 +1,7 @@
 "use client";
 
 // Dependencies
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase";
@@ -27,6 +27,7 @@ import {
   Check,
   Plus,
   Play,
+  Pause,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -51,9 +52,16 @@ export default function CreatePost() {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>("");
 
-  // Audio trimming states (for future implementation)
+  // Audio trimming states
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(100);
+
+  // Simple state for button display
+  const [buttonText, setButtonText] = useState("Play");
+  const [audioSrc, setAudioSrc] = useState<string>("");
+
+  // Audio element ref
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   // Post data
   const [postData, setPostData] = useState<PostData>({
@@ -81,13 +89,8 @@ export default function CreatePost() {
     if (!file || !user) return;
 
     setError("");
-
-    try {
-      setAudioFile(file);
-      console.log("Audio file selected:", file.name);
-    } catch (error: any) {
-      setError(error.message);
-    }
+    setAudioFile(file);
+    setButtonText("Play"); // Reset button
   };
 
   const handleCoverUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,10 +103,70 @@ export default function CreatePost() {
       setCoverFile(file);
       const previewUrl = URL.createObjectURL(file);
       setCoverPreview(previewUrl);
-      console.log("Cover image selected:", file.name);
     } catch (error: any) {
       setError(error.message);
     }
+  };
+
+  const handlePlay = () => {
+    const audio = audioRef.current;
+    if (!audio || !audioFile) {
+      return;
+    }
+
+    // Check if currently playing
+    if (!audio.paused) {
+      audio.pause();
+      setButtonText("Play");
+      return;
+    }
+
+    // Make sure audio is loaded
+    if (!audio.duration || isNaN(audio.duration)) {
+      audio.load();
+
+      // Wait for it to load
+      const handleCanPlay = () => {
+        audio.removeEventListener("canplay", handleCanPlay);
+        handlePlay();
+      };
+
+      audio.addEventListener("canplay", handleCanPlay);
+      return;
+    }
+
+    // Get trim settings
+    const duration = audio.duration;
+    const startTime = (trimStart / 100) * duration;
+    const endTime = (trimEnd / 100) * duration;
+
+    // Set position and play
+    audio.currentTime = startTime;
+    audio.volume = 1.0;
+    audio.muted = false;
+
+    // Start playing
+    audio
+      .play()
+      .then(() => {
+        setButtonText("Pause");
+
+        // Interval to check position
+        const checkPosition = setInterval(() => {
+          if (!audio || audio.paused || audio.currentTime >= endTime) {
+            clearInterval(checkPosition);
+            if (audio && !audio.paused && audio.currentTime >= endTime) {
+              audio.pause();
+            }
+            setButtonText("Play");
+          } else {
+          }
+        }, 500); // Check every 500ms
+      })
+      .catch((err) => {
+        console.error("Play failed:", err);
+        setButtonText("Play");
+      });
   };
 
   const handleSubmitPost = async () => {
@@ -170,7 +233,7 @@ export default function CreatePost() {
         description: postData.description || null,
         _url: audioUrl,
         cover_image_url: coverUrl || null,
-        duration: null, // You can calculate this from the audio file if needed
+        duration: audioRef.current?.duration || null,
         is_remix: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -180,18 +243,16 @@ export default function CreatePost() {
 
       if (postError) throw postError;
 
-      console.log("Post created successfully!");
-
       // Reset form and close dialog
       setCurrentStep(0);
       setAudioFile(null);
       setCoverFile(null);
       setCoverPreview("");
       setPostData({ title: "", description: "" });
+      setTrimStart(0);
+      setTrimEnd(100);
+      setButtonText("Play");
       setOpen(false);
-
-      // Optionally refresh the page or redirect
-      // router.refresh();
     } catch (error: any) {
       console.error("Post creation error:", error);
       setError(error.message);
@@ -226,209 +287,163 @@ export default function CreatePost() {
         return (
           <div className="space-y-4">
             {audioFile && (
-              <>
-                {/* Audio Player */}
+              <div className="space-y-4">
+                {/* Static audio element with stable src */}
                 <audio
-                  ref={(audio) => {
-                    if (audio) {
-                      audio.src = URL.createObjectURL(audioFile);
-                    }
+                  ref={audioRef}
+                  src={audioSrc}
+                  preload="metadata"
+                  style={{ display: "none" }}
+                  onLoadedMetadata={() => {}}
+                  onError={(e) => {
+                    console.error("Audio error:", e);
                   }}
-                  className="w-full"
-                  controls
                 />
 
-                {/* Trimming Interface */}
-                <div className="space-y-4">
-                  <div className="text-sm font-medium text-center">
-                    Trim Audio
-                  </div>
-
-                  {/* Trim Bar Container - styled like shadcn input */}
-                  <div className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm">
-                    <div className="flex-1 flex items-center">
-                      {/* Audio Waveform Placeholder */}
-                      <div className="w-full h-4 bg-gradient-to-r from-blue-200 to-blue-400 rounded-sm relative overflow-hidden">
-                        {/* Visual representation of audio */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-full h-2 bg-blue-500 opacity-50 rounded-sm"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Trim Controls Container - styled like shadcn input */}
-                  <div className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm">
-                    <div className="flex-1 flex items-center">
-                      {/* Trim Controls */}
-                      <div className="relative w-full">
-                        {/* Background track */}
-                        <div className="w-full h-1 bg-muted-foreground/20 rounded-full relative">
-                          {/* Selected range */}
-                          <div
-                            className="absolute h-1 bg-primary rounded-full"
-                            style={{
-                              left: `${trimStart}%`,
-                              width: `${trimEnd - trimStart}%`,
-                            }}
-                          />
-
-                          {/* Start handle */}
-                          <div
-                            className="absolute top-1/2 -translate-y-1/2 w-3 h-4 bg-primary rounded cursor-grab active:cursor-grabbing flex items-center justify-center"
-                            style={{
-                              left: `${trimStart}%`,
-                              marginLeft: "-6px",
-                            }}
-                            onMouseDown={(e) => {
-                              const handleMouseMove = (
-                                moveEvent: MouseEvent
-                              ) => {
-                                const target = e.currentTarget as HTMLElement;
-                                const container =
-                                  target.parentElement as HTMLElement;
-                                if (container) {
-                                  const rect =
-                                    container.getBoundingClientRect();
-                                  const percent = Math.max(
-                                    0,
-                                    Math.min(
-                                      trimEnd - 1,
-                                      ((moveEvent.clientX - rect.left) /
-                                        rect.width) *
-                                        100
-                                    )
-                                  );
-                                  setTrimStart(percent);
-                                }
-                              };
-
-                              const handleMouseUp = () => {
-                                document.removeEventListener(
-                                  "mousemove",
-                                  handleMouseMove
-                                );
-                                document.removeEventListener(
-                                  "mouseup",
-                                  handleMouseUp
-                                );
-                              };
-
-                              document.addEventListener(
-                                "mousemove",
-                                handleMouseMove
-                              );
-                              document.addEventListener(
-                                "mouseup",
-                                handleMouseUp
-                              );
-                            }}
-                          >
-                            <ChevronLeft
-                              size={8}
-                              className="text-primary-foreground"
-                            />
-                          </div>
-
-                          {/* End handle */}
-                          <div
-                            className="absolute top-1/2 -translate-y-1/2 w-3 h-4 bg-primary rounded cursor-grab active:cursor-grabbing flex items-center justify-center"
-                            style={{ left: `${trimEnd}%`, marginLeft: "-6px" }}
-                            onMouseDown={(e) => {
-                              const handleMouseMove = (
-                                moveEvent: MouseEvent
-                              ) => {
-                                const target = e.currentTarget as HTMLElement;
-                                const container =
-                                  target.parentElement as HTMLElement;
-                                if (container) {
-                                  const rect =
-                                    container.getBoundingClientRect();
-                                  const percent = Math.max(
-                                    trimStart + 1,
-                                    Math.min(
-                                      100,
-                                      ((moveEvent.clientX - rect.left) /
-                                        rect.width) *
-                                        100
-                                    )
-                                  );
-                                  setTrimEnd(percent);
-                                }
-                              };
-
-                              const handleMouseUp = () => {
-                                document.removeEventListener(
-                                  "mousemove",
-                                  handleMouseMove
-                                );
-                                document.removeEventListener(
-                                  "mouseup",
-                                  handleMouseUp
-                                );
-                              };
-
-                              document.addEventListener(
-                                "mousemove",
-                                handleMouseMove
-                              );
-                              document.addEventListener(
-                                "mouseup",
-                                handleMouseUp
-                              );
-                            }}
-                          >
-                            <ChevronRight
-                              size={8}
-                              className="text-primary-foreground"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Time Display */}
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{Math.round(trimStart)}%</span>
-                    <span>{Math.round(trimEnd)}%</span>
-                  </div>
-
-                  {/* Play Trimmed Section Button */}
-                  <div className="flex justify-center">
+                {/* Trimming interface */}
+                <div className="p-4">
+                  <div className="flex items-center gap-3">
+                    {/* Play/Pause Buttons */}
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        // Basic implementation - you can enhance this with Web Audio API
-                        const audio = document.querySelector(
-                          "audio"
-                        ) as HTMLAudioElement;
-                        if (audio && audio.duration) {
-                          const startTime = (trimStart / 100) * audio.duration;
-                          const endTime = (trimEnd / 100) * audio.duration;
-                          audio.currentTime = startTime;
-                          audio.play();
-
-                          // Stop at end time
-                          const stopTimer = setTimeout(() => {
-                            audio.pause();
-                          }, (endTime - startTime) * 1000);
-
-                          audio.addEventListener(
-                            "pause",
-                            () => clearTimeout(stopTimer),
-                            { once: true }
-                          );
-                        }
-                      }}
+                      variant="default"
+                      size="icon"
+                      className=""
+                      onClick={handlePlay}
                     >
-                      <Play size={16} className="mr-2" />
-                      Play Trimmed
+                      {buttonText === "Pause" ? (
+                        <Pause size={16} fill="white" />
+                      ) : (
+                        <Play size={16} fill="white" />
+                      )}
                     </Button>
+
+                    {/* Audio Track with Trim Handles */}
+                    <div className="flex-1 relative rounded-md">
+                      {/* Yellow track container */}
+                      <div className="h-9 bg-transparent rounded-md border border-input relative overflow-hidden">
+                        {/* TODO: Audio waveform representation */}
+
+                        {/* Left trim handle */}
+                        <div
+                          className="absolute top-0 left-0 w-3 h-full bg-black rounded-l-md cursor-ew-resize flex items-center justify-center select-none"
+                          style={{ left: `${trimStart}%` }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            const target = e.currentTarget as HTMLElement;
+                            const container =
+                              target.parentElement as HTMLElement;
+
+                            const handleMouseMove = (moveEvent: MouseEvent) => {
+                              if (container) {
+                                const rect = container.getBoundingClientRect();
+                                const percent = Math.max(
+                                  0,
+                                  Math.min(
+                                    trimEnd - 5,
+                                    ((moveEvent.clientX - rect.left) /
+                                      rect.width) *
+                                      100
+                                  )
+                                );
+                                setTrimStart(percent);
+                              }
+                            };
+
+                            const handleMouseUp = () => {
+                              document.removeEventListener(
+                                "mousemove",
+                                handleMouseMove
+                              );
+                              document.removeEventListener(
+                                "mouseup",
+                                handleMouseUp
+                              );
+                            };
+
+                            document.addEventListener(
+                              "mousemove",
+                              handleMouseMove
+                            );
+                            document.addEventListener("mouseup", handleMouseUp);
+                          }}
+                        >
+                          <ChevronLeft color="white" />
+                        </div>
+
+                        {/* Right trim handle */}
+                        <div
+                          className="absolute top-0 right-0 w-3 h-full bg-black rounded-r-md cursor-ew-resize flex items-center justify-center select-none"
+                          style={{ right: `${100 - trimEnd}%` }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            const target = e.currentTarget as HTMLElement;
+                            const container =
+                              target.parentElement as HTMLElement;
+
+                            const handleMouseMove = (moveEvent: MouseEvent) => {
+                              if (container) {
+                                const rect = container.getBoundingClientRect();
+                                const percent = Math.max(
+                                  trimStart + 5,
+                                  Math.min(
+                                    100,
+                                    ((moveEvent.clientX - rect.left) /
+                                      rect.width) *
+                                      100
+                                  )
+                                );
+                                setTrimEnd(percent);
+                              }
+                            };
+
+                            const handleMouseUp = () => {
+                              document.removeEventListener(
+                                "mousemove",
+                                handleMouseMove
+                              );
+                              document.removeEventListener(
+                                "mouseup",
+                                handleMouseUp
+                              );
+                            };
+
+                            document.addEventListener(
+                              "mousemove",
+                              handleMouseMove
+                            );
+                            document.addEventListener("mouseup", handleMouseUp);
+                          }}
+                        >
+                          <ChevronRight color="white" />
+                        </div>
+
+                        {/* Dimmed areas outside selection */}
+                        <div
+                          className="absolute top-0 left-0 h-full bg-black/50"
+                          style={{ width: `${trimStart}%` }}
+                        />
+                        <div
+                          className="absolute top-0 right-0 h-full bg-black/50"
+                          style={{ width: `${100 - trimEnd}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trim info display */}
+                  <div className="mt-2 text-metadata text-center">
+                    Duration:{" "}
+                    {audioRef.current?.duration &&
+                      (() => {
+                        const duration = audioRef.current.duration;
+                        const startTime = (trimStart / 100) * duration;
+                        const endTime = (trimEnd / 100) * duration;
+                        const trimmedDuration = endTime - startTime;
+                        return `${trimmedDuration.toFixed(1)}s`;
+                      })()}
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         );
@@ -515,7 +530,21 @@ export default function CreatePost() {
     }
   };
 
-  // Cleanup preview URL on unmount
+  // Set up audio source when file changes
+  useEffect(() => {
+    if (audioFile) {
+      const audioUrl = URL.createObjectURL(audioFile);
+      setAudioSrc(audioUrl);
+
+      return () => {
+        URL.revokeObjectURL(audioUrl);
+      };
+    } else {
+      setAudioSrc("");
+    }
+  }, [audioFile]);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (coverPreview && coverPreview.startsWith("blob:")) {
