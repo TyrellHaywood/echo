@@ -1,7 +1,7 @@
 "use client";
 
 // Dependencies
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase";
@@ -20,17 +20,11 @@ import {
 } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
+// Custom Components
+import Adjustments from "./Adjustments";
+
 // Icons
-import {
-  ArrowRight,
-  ArrowLeft,
-  Check,
-  Plus,
-  Play,
-  Pause,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Plus } from "lucide-react";
 
 // Types
 interface PostData {
@@ -55,13 +49,6 @@ export default function CreatePost() {
   // Audio trimming states
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(100);
-
-  // Simple state for button display
-  const [buttonText, setButtonText] = useState("Play");
-  const [audioSrc, setAudioSrc] = useState<string>("");
-
-  // Audio element ref
-  const audioRef = useRef<HTMLAudioElement>(null);
 
   // Post data
   const [postData, setPostData] = useState<PostData>({
@@ -90,7 +77,6 @@ export default function CreatePost() {
 
     setError("");
     setAudioFile(file);
-    setButtonText("Play"); // Reset button
   };
 
   const handleCoverUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,67 +92,6 @@ export default function CreatePost() {
     } catch (error: any) {
       setError(error.message);
     }
-  };
-
-  const handlePlay = () => {
-    const audio = audioRef.current;
-    if (!audio || !audioFile) {
-      return;
-    }
-
-    // Check if currently playing
-    if (!audio.paused) {
-      audio.pause();
-      setButtonText("Play");
-      return;
-    }
-
-    // Make sure audio is loaded
-    if (!audio.duration || isNaN(audio.duration)) {
-      audio.load();
-
-      // Wait for it to load
-      const handleCanPlay = () => {
-        audio.removeEventListener("canplay", handleCanPlay);
-        handlePlay();
-      };
-
-      audio.addEventListener("canplay", handleCanPlay);
-      return;
-    }
-
-    // Get trim settings
-    const duration = audio.duration;
-    const startTime = (trimStart / 100) * duration;
-    const endTime = (trimEnd / 100) * duration;
-
-    // Set position and play
-    audio.currentTime = startTime;
-    audio.volume = 1.0;
-    audio.muted = false;
-
-    // Start playing
-    audio
-      .play()
-      .then(() => {
-        setButtonText("Pause");
-
-        // Interval to check position
-        const checkPosition = setInterval(() => {
-          if (!audio || audio.paused || audio.currentTime >= endTime) {
-            clearInterval(checkPosition);
-            if (audio && !audio.paused && audio.currentTime >= endTime) {
-              audio.pause();
-            }
-            setButtonText("Play");
-          } else {
-          }
-        }, 500); // Check every 500ms
-      })
-      .catch((err) => {
-        console.error("Play failed:", err);
-        setButtonText("Play");
-      });
   };
 
   const handleSubmitPost = async () => {
@@ -233,7 +158,7 @@ export default function CreatePost() {
         description: postData.description || null,
         _url: audioUrl,
         cover_image_url: coverUrl || null,
-        duration: audioRef.current?.duration || null,
+        duration: null, // We'll need to calculate this in the Adjustments component
         is_remix: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -251,7 +176,6 @@ export default function CreatePost() {
       setPostData({ title: "", description: "" });
       setTrimStart(0);
       setTrimEnd(100);
-      setButtonText("Play");
       setOpen(false);
     } catch (error: any) {
       console.error("Post creation error:", error);
@@ -285,167 +209,13 @@ export default function CreatePost() {
 
       case 1: // Adjustments (Audio Trimming)
         return (
-          <div className="space-y-4">
-            {audioFile && (
-              <div className="space-y-4">
-                {/* Static audio element with stable src */}
-                <audio
-                  ref={audioRef}
-                  src={audioSrc}
-                  preload="metadata"
-                  style={{ display: "none" }}
-                  onLoadedMetadata={() => {}}
-                  onError={(e) => {
-                    console.error("Audio error:", e);
-                  }}
-                />
-
-                {/* Trimming interface */}
-                <div className="p-4">
-                  <div className="flex items-center gap-3">
-                    {/* Play/Pause Buttons */}
-                    <Button
-                      variant="default"
-                      size="icon"
-                      className=""
-                      onClick={handlePlay}
-                    >
-                      {buttonText === "Pause" ? (
-                        <Pause size={16} fill="white" />
-                      ) : (
-                        <Play size={16} fill="white" />
-                      )}
-                    </Button>
-
-                    {/* Audio Track with Trim Handles */}
-                    <div className="flex-1 relative rounded-md">
-                      {/* Yellow track container */}
-                      <div className="h-9 bg-transparent rounded-md border border-input relative overflow-hidden">
-                        {/* TODO: Audio waveform representation */}
-
-                        {/* Left trim handle */}
-                        <div
-                          className="absolute top-0 left-0 w-3 h-full bg-black rounded-l-md cursor-ew-resize flex items-center justify-center select-none"
-                          style={{ left: `${trimStart}%` }}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            const target = e.currentTarget as HTMLElement;
-                            const container =
-                              target.parentElement as HTMLElement;
-
-                            const handleMouseMove = (moveEvent: MouseEvent) => {
-                              if (container) {
-                                const rect = container.getBoundingClientRect();
-                                const percent = Math.max(
-                                  0,
-                                  Math.min(
-                                    trimEnd - 5,
-                                    ((moveEvent.clientX - rect.left) /
-                                      rect.width) *
-                                      100
-                                  )
-                                );
-                                setTrimStart(percent);
-                              }
-                            };
-
-                            const handleMouseUp = () => {
-                              document.removeEventListener(
-                                "mousemove",
-                                handleMouseMove
-                              );
-                              document.removeEventListener(
-                                "mouseup",
-                                handleMouseUp
-                              );
-                            };
-
-                            document.addEventListener(
-                              "mousemove",
-                              handleMouseMove
-                            );
-                            document.addEventListener("mouseup", handleMouseUp);
-                          }}
-                        >
-                          <ChevronLeft color="white" />
-                        </div>
-
-                        {/* Right trim handle */}
-                        <div
-                          className="absolute top-0 right-0 w-3 h-full bg-black rounded-r-md cursor-ew-resize flex items-center justify-center select-none"
-                          style={{ right: `${100 - trimEnd}%` }}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            const target = e.currentTarget as HTMLElement;
-                            const container =
-                              target.parentElement as HTMLElement;
-
-                            const handleMouseMove = (moveEvent: MouseEvent) => {
-                              if (container) {
-                                const rect = container.getBoundingClientRect();
-                                const percent = Math.max(
-                                  trimStart + 5,
-                                  Math.min(
-                                    100,
-                                    ((moveEvent.clientX - rect.left) /
-                                      rect.width) *
-                                      100
-                                  )
-                                );
-                                setTrimEnd(percent);
-                              }
-                            };
-
-                            const handleMouseUp = () => {
-                              document.removeEventListener(
-                                "mousemove",
-                                handleMouseMove
-                              );
-                              document.removeEventListener(
-                                "mouseup",
-                                handleMouseUp
-                              );
-                            };
-
-                            document.addEventListener(
-                              "mousemove",
-                              handleMouseMove
-                            );
-                            document.addEventListener("mouseup", handleMouseUp);
-                          }}
-                        >
-                          <ChevronRight color="white" />
-                        </div>
-
-                        {/* Dimmed areas outside selection */}
-                        <div
-                          className="absolute top-0 left-0 h-full bg-black/50"
-                          style={{ width: `${trimStart}%` }}
-                        />
-                        <div
-                          className="absolute top-0 right-0 h-full bg-black/50"
-                          style={{ width: `${100 - trimEnd}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Trim info display */}
-                  <div className="mt-2 text-metadata text-center">
-                    Duration:{" "}
-                    {audioRef.current?.duration &&
-                      (() => {
-                        const duration = audioRef.current.duration;
-                        const startTime = (trimStart / 100) * duration;
-                        const endTime = (trimEnd / 100) * duration;
-                        const trimmedDuration = endTime - startTime;
-                        return `${trimmedDuration.toFixed(1)}s`;
-                      })()}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <Adjustments
+            audioFile={audioFile}
+            trimStart={trimStart}
+            trimEnd={trimEnd}
+            setTrimStart={setTrimStart}
+            setTrimEnd={setTrimEnd}
+          />
         );
 
       case 2: // Cover Image
@@ -529,20 +299,6 @@ export default function CreatePost() {
         return null;
     }
   };
-
-  // Set up audio source when file changes
-  useEffect(() => {
-    if (audioFile) {
-      const audioUrl = URL.createObjectURL(audioFile);
-      setAudioSrc(audioUrl);
-
-      return () => {
-        URL.revokeObjectURL(audioUrl);
-      };
-    } else {
-      setAudioSrc("");
-    }
-  }, [audioFile]);
 
   // Cleanup on unmount
   useEffect(() => {
