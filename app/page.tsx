@@ -7,6 +7,9 @@ import { Logo } from "@/components/ui/logo";
 // Icons
 import { Waypoints, Plus, User } from "lucide-react";
 
+// Custom components
+import CreatePost from "@/components/post/CreatePost";
+
 export default function Home() {
   return (
     <div>
@@ -24,9 +27,9 @@ export default function Home() {
           <Button variant="ghost" className="hover:border hover:border-input">
             <Waypoints />
           </Button>
-          <Button variant="ghost" className="hover:border hover:border-input">
-            <Plus />
-          </Button>
+
+          <CreatePost />
+
           <Button variant="ghost" className="hover:border hover:border-input">
             <User />
           </Button>
