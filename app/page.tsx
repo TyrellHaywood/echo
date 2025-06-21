@@ -24,13 +24,17 @@ export default function Home() {
         <div className="flex flex-row gap-4">
           <Logo className="absolute top-4 left-4" />
           <div className="flex flex-row gap-4 items-center absolute top-4 left-1/2 transform -translate-x-1/2 w-1/3">
-            <Input type="text" placeholder="Search" />
+            <Input
+              type="text"
+              placeholder="Search"
+              className="bg-background/50 backdrop-blur-md shadow-inner"
+            />
           </div>
         </div>
       </div>
 
       {/* Toolbar */}
-      <Menubar className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-0 space-x-0 z-20">
+      <Menubar className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-0 space-x-0 z-20 bg-background/50 backdrop-blur-md shadow-inner">
         <MenubarMenu>
           <Button variant="ghost" className="hover:border hover:border-input">
             <Waypoints />
