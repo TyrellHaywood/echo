@@ -255,7 +255,7 @@ export default function SetupProfile() {
                 <Badge
                   key={interest}
                   variant="outline"
-                  className="flex flex-row gap-1"
+                  className="flex flex-row gap-1 bg-background/50 backdrop-blur-md shadow-inner"
                 >
                   {interest}
                   <Button
@@ -274,15 +274,15 @@ export default function SetupProfile() {
 
       case 6: // Preview
         return (
-          <div className="space-y-2 text-center">
-            <div className="flex justify-center">
+          <div className="flex flex-col items-center w-4/5 m-auto">
+            <div className="relative w-full max-w-80 aspect-square mb-3">
               {avatarPreview ? (
                 <Image
                   src={avatarPreview}
                   alt="Avatar preview"
-                  width={64}
-                  height={64}
-                  className="rounded-md object-cover w-full max-w-64 max-h-64"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 300px"
+                  className="rounded-md object-cover shadow-xl"
                 />
               ) : (
                 <div className="text-red-500 mt-2">
@@ -290,29 +290,31 @@ export default function SetupProfile() {
                 </div>
               )}
             </div>
-            <div className="text-title font-plex-serif">
+            <div className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4">
               {profileData.username}
             </div>
-            <div className="flex flex-row gap-2 items-end justify-center">
-              <div className="text-description font-source-sans">
-                {profileData.name}
-              </div>
+            <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mb-1">
+              <span className="text-sub-description font-source-sans">
+                {profileData?.name}
+              </span>
               •
-              <div className="text-description font-source-sans">
-                {profileData.pronouns}
-              </div>
+              <span className="text-sub-description font-source-sans">
+                {profileData?.pronouns}
+              </span>
             </div>
-            <div className="text-description font-source-sans">
-              {profileData.bio}
-            </div>{" "}
-            <div>
-              <div className="flex flex-wrap gap-2 justify-center items-center">
-                {profileData.interests.map((interest) => (
-                  <Badge key={interest} variant="outline">
-                    {interest}
-                  </Badge>
-                ))}
-              </div>
+            <p className="text-description font-source-sans w-full max-w-80 pl-4">
+              {profileData?.bio}
+            </p>
+            <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mt-2">
+              {profileData.interests.map((interest) => (
+                <Badge
+                  key={interest}
+                  className="bg-background/50 backdrop-blur-md shadow-inner"
+                  variant="outline"
+                >
+                  {interest}
+                </Badge>
+              ))}
             </div>
             {error && <div className="text-red-500">{error}</div>}
           </div>

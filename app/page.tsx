@@ -1,17 +1,12 @@
 "use client";
 
 // Shadcn components
-import { Menubar, MenubarMenu } from "@/components/ui/menubar";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/ui/logo";
 
-// Icons
-import { Waypoints, Plus, User } from "lucide-react";
-
 // Custom components
-import CreatePost from "@/components/post/CreatePost";
 import MetaGraph from "@/components/metaGraph/MetaGraph";
+import Toolbar from "@/components/Toolbar";
 
 export default function Home() {
   return (
@@ -34,19 +29,7 @@ export default function Home() {
       </div>
 
       {/* Toolbar */}
-      <Menubar className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-0 space-x-0 z-20 bg-background/50 backdrop-blur-md shadow-inner">
-        <MenubarMenu>
-          <Button variant="ghost" className="hover:border hover:border-input">
-            <Waypoints />
-          </Button>
-
-          <CreatePost />
-
-          <Button variant="ghost" className="hover:border hover:border-input">
-            <User />
-          </Button>
-        </MenubarMenu>
-      </Menubar>
+      <Toolbar />
     </div>
   );
 }
