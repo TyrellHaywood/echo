@@ -98,7 +98,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               alt="Avatar preview"
               fill
               sizes="(max-width: 768px) 100vw, 300px"
-              className="rounded-md object-cover"
+              className="rounded-md object-cover shadow-xl"
               onError={(e) => {}}
               onLoad={() => {}}
             />
@@ -129,7 +129,11 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         {/* Interests */}
         <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mt-2">
           {profile?.interests?.map((interest, index) => (
-            <Badge key={index} className="" variant={"outline"}>
+            <Badge
+              key={index}
+              className="bg-background/50 backdrop-blur-md shadow-inner"
+              variant={"outline"}
+            >
               {interest}
             </Badge>
           ))}
