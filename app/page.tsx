@@ -1,3 +1,5 @@
+"use client";
+
 // Shadcn components
 import { Menubar, MenubarMenu } from "@/components/ui/menubar";
 import { Button } from "@/components/ui/button";
@@ -9,20 +11,26 @@ import { Waypoints, Plus, User } from "lucide-react";
 
 // Custom components
 import CreatePost from "@/components/post/CreatePost";
+import MetaGraph from "@/components/metaGraph/MetaGraph";
 
 export default function Home() {
   return (
-    <div>
+    <div className="relative w-full h-screen overflow-hidden">
+      {/* Main page elements */}
+      <MetaGraph />
+
       {/* Top menu */}
-      <div className="flex flex-row gap-4">
-        <Logo className="absolute top-4 left-4" />
-        <div className="flex flex-row gap-4 items-center absolute top-4 left-1/2 transform -translate-x-1/2 w-1/3">
-          <Input type="text" placeholder="Search"></Input>
+      <div className="absolute top-0 left-0 w-full z-20">
+        <div className="flex flex-row gap-4">
+          <Logo className="absolute top-4 left-4" />
+          <div className="flex flex-row gap-4 items-center absolute top-4 left-1/2 transform -translate-x-1/2 w-1/3">
+            <Input type="text" placeholder="Search" />
+          </div>
         </div>
       </div>
 
       {/* Toolbar */}
-      <Menubar className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-0 space-x-0">
+      <Menubar className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-0 space-x-0 z-20">
         <MenubarMenu>
           <Button variant="ghost" className="hover:border hover:border-input">
             <Waypoints />
