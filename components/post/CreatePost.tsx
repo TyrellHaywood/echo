@@ -12,6 +12,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ import { ArrowRight, ArrowLeft, Check, Plus } from "lucide-react";
 interface PostData {
   title: string;
   description: string;
+  types: string[];
 }
 
 export default function CreatePost() {
@@ -50,10 +52,14 @@ export default function CreatePost() {
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(100);
 
+  // Types input state
+  const [currentType, setCurrentType] = useState("");
+
   // Post data
   const [postData, setPostData] = useState<PostData>({
     title: "",
     description: "",
+    types: [],
   });
 
   const currentSetup = createPost[currentStep];
@@ -68,6 +74,23 @@ export default function CreatePost() {
     setPostData((prev) => ({
       ...prev,
       [field]: value,
+    }));
+  };
+
+  const addType = () => {
+    if (currentType.trim() && !postData.types.includes(currentType.trim())) {
+      setPostData((prev) => ({
+        ...prev,
+        types: [...prev.types, currentType.trim()],
+      }));
+      setCurrentType("");
+    }
+  };
+
+  const removeType = (typeToRemove: string) => {
+    setPostData((prev) => ({
+      ...prev,
+      types: prev.types.filter((type) => type !== typeToRemove),
     }));
   };
 
@@ -156,9 +179,10 @@ export default function CreatePost() {
         user_id: user.id,
         title: postData.title,
         description: postData.description || null,
+        types: postData.types,
         _url: audioUrl,
         cover_image_url: coverUrl || null,
-        duration: null, // We'll need to calculate this in the Adjustments component
+        duration: null,
         is_remix: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -173,9 +197,10 @@ export default function CreatePost() {
       setAudioFile(null);
       setCoverFile(null);
       setCoverPreview("");
-      setPostData({ title: "", description: "" });
+      setPostData({ title: "", description: "", types: [] });
       setTrimStart(0);
       setTrimEnd(100);
+      setCurrentType("");
       setOpen(false);
     } catch (error: any) {
       console.error("Post creation error:", error);
@@ -256,7 +281,7 @@ export default function CreatePost() {
           </div>
         );
 
-      case 4: // Preview with Description
+      case 4: // Preview with Description and Types
         return (
           <div className="space-y-4 text-center">
             <div className="flex justify-center">
@@ -290,6 +315,42 @@ export default function CreatePost() {
               value={postData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
             />
+
+            {/* Types multi-select */}
+            <div className="space-y-2 text-left">
+              <div className="text-sm font-medium">Type</div>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="What type of audio is this?"
+                  value={currentType}
+                  onChange={(e) => setCurrentType(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addType()}
+                />
+                <Button type="button" onClick={addType}>
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {postData.types.map((type) => (
+                  <Badge
+                    key={type}
+                    variant="outline"
+                    className="flex flex-row gap-1"
+                  >
+                    {type}
+                    <Button
+                      onClick={() => removeType(type)}
+                      size="icon"
+                      variant="ghost"
+                      className="py-0 px-1 w-auto h-auto hover:bg-transparent text-muted-foreground hover:text-foreground"
+                    >
+                      x
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
 
             {error && <div className="text-red-500 text-sm">{error}</div>}
           </div>
