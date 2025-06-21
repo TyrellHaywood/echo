@@ -1,5 +1,8 @@
 "use client";
 
+// Utilities
+import { useGoToProfile } from "@/components/GoToProfile";
+
 // Shadcn components
 import { Menubar, MenubarMenu } from "@/components/ui/menubar";
 import { Button } from "@/components/ui/button";
@@ -14,6 +17,8 @@ import CreatePost from "@/components/post/CreatePost";
 import MetaGraph from "@/components/metaGraph/MetaGraph";
 
 export default function Home() {
+  const { goToMyProfile } = useGoToProfile();
+
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {/* Main page elements */}
@@ -42,7 +47,12 @@ export default function Home() {
 
           <CreatePost />
 
-          <Button variant="ghost" className="hover:border hover:border-input">
+          {/* View profile */}
+          <Button
+            variant="ghost"
+            className="hover:border hover:border-input"
+            onClick={goToMyProfile}
+          >
             <User />
           </Button>
         </MenubarMenu>
