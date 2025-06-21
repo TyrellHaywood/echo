@@ -7,6 +7,10 @@ import { supabase } from "@/utils/supabase";
 import Image from "next/image";
 
 // Shadcn components
+import { Badge } from "@/components/ui/badge";
+
+// Custom components
+import Toolbar from "@/components/Toolbar";
 
 interface ProfilePageProps {
   params: Promise<{
@@ -50,8 +54,11 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         .single();
 
       if (error) {
+        console.error("Profile fetch error:", error);
       } else {
         setProfile(data);
+        console.log("Profile data:", data);
+        console.log("Avatar URL:", data?.avatar_url);
       }
       setLoading(false);
     };
@@ -66,7 +73,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         const { data } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", user.id) // Fixed: changed from user_id to id
+          .eq("id", user.id)
           .single();
 
         setCurrentUserProfile(data);
@@ -80,8 +87,54 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   const isOwnProfile = currentUserProfile?.username === username;
 
   return (
-    <div>
-      <h1>{user?.id}</h1>
-    </div>
+    <>
+      <Toolbar />
+
+      <div className="flex flex-col items-center justify-center w-4/5 h-screen m-auto">
+        {profile?.avatar_url ? (
+          <div className="relative w-full max-w-80 aspect-square mb-3">
+            <Image
+              src={profile.avatar_url}
+              alt="Avatar preview"
+              fill
+              sizes="(max-width: 768px) 100vw, 300px"
+              className="rounded-md object-cover"
+              onError={(e) => {}}
+              onLoad={() => {}}
+            />
+          </div>
+        ) : (
+          <div className="">
+            <span className="">No avatar</span>
+          </div>
+        )}
+        {/* Username */}
+        <h1 className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4">
+          {profile?.username}
+        </h1>
+        {/* Name & pronouns */}
+        <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mb-1">
+          <span className="text-sub-description font-source-sans">
+            {profile?.name}
+          </span>
+          •
+          <span className="text-sub-description font-source-sans">
+            {profile?.pronouns}
+          </span>
+        </div>
+        {/* Bio */}
+        <p className="text-description font-source-sans w-full max-w-80 pl-4">
+          {profile?.bio}
+        </p>
+        {/* Interests */}
+        <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mt-2">
+          {profile?.interests?.map((interest, index) => (
+            <Badge key={index} className="" variant={"outline"}>
+              {interest}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

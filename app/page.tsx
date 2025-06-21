@@ -1,8 +1,5 @@
 "use client";
 
-// Utilities
-import { useGoToProfile } from "@/components/GoToProfile";
-
 // Shadcn components
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/ui/logo";
@@ -12,8 +9,6 @@ import MetaGraph from "@/components/metaGraph/MetaGraph";
 import Toolbar from "@/components/Toolbar";
 
 export default function Home() {
-  const { goToMyProfile } = useGoToProfile();
-
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {/* Main page elements */}

@@ -1,3 +1,8 @@
+"use client";
+
+// Dependencies
+import { useRouter } from "next/navigation";
+
 // Utilities
 import { useGoToProfile } from "@/components/GoToProfile";
 
@@ -12,12 +17,19 @@ import CreatePost from "@/components/post/CreatePost";
 import { Waypoints, User } from "lucide-react";
 
 export default function Toolbar() {
+  const router = useRouter();
   const { goToMyProfile } = useGoToProfile();
 
   return (
     <Menubar className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-0 space-x-0 z-20 bg-background/50 backdrop-blur-md shadow-inner">
       <MenubarMenu>
-        <Button variant="ghost" className="hover:border hover:border-input">
+        <Button
+          variant="ghost"
+          className="hover:border hover:border-input"
+          onClick={() => {
+            router.push("/");
+          }}
+        >
           <Waypoints />
         </Button>
 
