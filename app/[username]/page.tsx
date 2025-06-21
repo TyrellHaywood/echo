@@ -4,6 +4,9 @@
 import { use, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/utils/supabase";
+import Image from "next/image";
+
+// Shadcn components
 
 interface ProfilePageProps {
   params: Promise<{
