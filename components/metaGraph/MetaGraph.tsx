@@ -92,7 +92,7 @@ export default function MetaGraph() {
     }
   }, [graphData.nodes]);
 
-  // Filter nodes based on selected types (keep original filtering logic)
+  // Filter nodes based on selected types
   const filteredData = React.useMemo((): GraphData => {
     if (selectedTypes.length === 0) return { nodes: [], links: [] };
 
@@ -115,7 +115,7 @@ export default function MetaGraph() {
     return { nodes: filteredNodes, links: filteredLinks };
   }, [graphData, selectedTypes]);
 
-  // Apply clustering forces (keep original clustering behavior)
+  // Apply clustering forces
   useEffect(() => {
     if (fgRef.current && filteredData.nodes.length > 0) {
       // Group by type for clustering
@@ -193,14 +193,12 @@ export default function MetaGraph() {
 
   return (
     <div className="w-full h-screen relative">
-      {/* Removed TypeFilters component */}
-
       <div className="w-full h-full">
         {filteredData.nodes.length > 0 ? (
           <ForceGraph2D
             ref={fgRef}
             graphData={filteredData}
-            nodeRelSize={10} // Slightly smaller than before
+            nodeRelSize={10}
             nodeLabel={(node) => handleNodeHover(node as GraphNode)}
             linkColor={() => "rgba(100, 100, 100, 0.6)"}
             linkWidth={2}
@@ -209,7 +207,7 @@ export default function MetaGraph() {
             onNodeClick={(node) => handleNodeClick(node as GraphNode)}
             nodeCanvasObject={(node, ctx, globalScale) => {
               const typedNode = node as GraphNode;
-              const nodeSize = 14; // Even smaller size
+              const nodeSize = 14;
               const x = node.x || 0;
               const y = node.y || 0;
 
@@ -218,7 +216,7 @@ export default function MetaGraph() {
 
               if (cachedImage && typedNode.coverImageUrl) {
                 // Draw rounded rectangle clipped image
-                const cornerRadius = 3; // rounded-md equivalent
+                const cornerRadius = 3;
 
                 ctx.save();
 
@@ -324,9 +322,7 @@ export default function MetaGraph() {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <div className="text-lg">
-              No posts found matching selected types
-            </div>
+            <div className="text-lg">No posts available.</div>
           </div>
         )}
       </div>
