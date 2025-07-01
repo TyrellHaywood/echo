@@ -322,9 +322,7 @@ export default function MetaGraph() {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <div className="text-lg">
-              No posts found matching selected types
-            </div>
+            <div className="text-lg">No posts available.</div>
           </div>
         )}
       </div>
