@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import ForceGraph2D from "react-force-graph-2d";
+import dynamic from "next/dynamic";
 import { ForceGraphMethods } from "react-force-graph-2d";
 import {
   fetchAllPosts,
@@ -9,6 +9,16 @@ import {
   GraphData,
   GraphNode,
 } from "@/utils/dataTransformer";
+
+// Dynamically import ForceGraph2D with SSR disabled
+const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-screen flex items-center justify-center">
+      <div className="text-lg">Loading graph...</div>
+    </div>
+  ),
+});
 
 export default function MetaGraph() {
   const fgRef = useRef<ForceGraphMethods>(undefined);
