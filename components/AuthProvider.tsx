@@ -71,6 +71,15 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper function to get the origin safely
+const getOrigin = () => {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  // Fallback for server-side rendering
+  return process.env.NEXT_PUBLIC_SITE_URL || "3cho.vercel.app";
+};
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -115,7 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback`,
+          redirectTo: `${getOrigin()}/api/auth/callback`,
         },
       });
 
@@ -135,7 +144,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/verify-email`,
+          emailRedirectTo: `${getOrigin()}/auth/verify-email`,
         },
       });
 
@@ -226,7 +235,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         type: "signup",
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/verify-email`,
+          emailRedirectTo: `${getOrigin()}/auth/verify-email`,
         },
       });
 
