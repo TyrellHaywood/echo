@@ -154,7 +154,7 @@ let MD5 = function (string: string): string {
     return utftext;
   }
 
-  let x = Array();
+  let x: number[] = [];
   let k, AA, BB, CC, DD, a, b, c, d;
   let S11 = 7,
     S12 = 12,
