@@ -14,6 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
+// Custom Components
+import {
+  BubbleIdenticon,
+  generateIdenticonDataUrl,
+} from "@/components/BubbleIdenticon";
+
 // Icons
 import { ArrowRight, ArrowLeft, Check } from "lucide-react";
 
@@ -130,6 +136,9 @@ export default function SetupProfile() {
 
         avatarUrl = publicUrl;
         setUploading(false);
+      } else if (profileData.username) {
+        // Generate identicon as fallback
+        avatarUrl = generateIdenticonDataUrl(profileData.username, 512);
       }
 
       // Create and save profile data
@@ -285,9 +294,7 @@ export default function SetupProfile() {
                   className="rounded-md object-cover shadow-xl"
                 />
               ) : (
-                <div className="text-red-500 mt-2">
-                  No profile image selected
-                </div>
+                <BubbleIdenticon username={profileData.username} size={320} />
               )}
             </div>
             <div className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4">
