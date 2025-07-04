@@ -130,11 +130,11 @@ export default function PostPage() {
               alt={currentUserProfile?.name || "user_id"}
             />
             {/* text */}
-            <div>
+            <div className="flex flex-col">
               <span className="text-description font-source-sans">
                 {currentUserProfile?.name}
               </span>
-              <span className="text-metadata font-source-sans">
+              <span className="text-metadata font-source-sans uppercase">
                 {post?.created_at && formatDate(post.created_at)}
               </span>
             </div>
