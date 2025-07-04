@@ -8,11 +8,11 @@ import { ForceGraphMethods } from "react-force-graph-2d";
 import {
   fetchAllPosts,
   transformPostsToGraphData,
-  extractTypesFromPosts,
   createTypeColorMap,
   GraphData,
   GraphNode,
 } from "@/utils/dataTransformer";
+import { extractTypesFromPosts } from "@/utils/postInteractions";
 
 // Dynamically import ForceGraph2D with SSR disabled
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
