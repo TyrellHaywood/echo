@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { Database } from '../types/supabase';
 
 // MetaGraph types
 export interface NodeMetadata {
@@ -31,21 +32,10 @@ export interface GraphData {
 }
 
 // Post type from database
-interface DatabasePost {
-  id: string;
-  title: string;
-  description?: string;
-  types: string[];
-  cover_image_url?: string;
-  _url: string; // audio URL
-  parent_id?: string;
-  child_id?: string;
-  user_id: string;
-  created_at: string;
-}
+type Post = Database['public']['Tables']['posts']['Row'];
 
 // Fetch all posts from Supabase
-export async function fetchAllPosts(): Promise<DatabasePost[]> {
+export async function fetchAllPosts(): Promise<Post[]> {
   try {
     const { data, error } = await supabase
       .from('posts')
@@ -60,14 +50,18 @@ export async function fetchAllPosts(): Promise<DatabasePost[]> {
     return (data || []).map((post: any) => ({
       id: post.id,
       title: post.title,
-      description: post.description ?? "",
+      description: post.description ?? null,
       types: post.types ?? [],
       cover_image_url: post.cover_image_url ?? "",
       _url: post._url,
       parent_id: post.parent_id ?? "",
       child_id: post.child_id ?? "",
-      user_id: post.user_id ?? "",
-      created_at: post.created_at ?? "",
+      user_id: post.user_id ?? null,
+      created_at: post.created_at ?? null,
+      duration: post.duration ?? null,
+      is_remix: post.is_remix ?? null,
+      parent_post_id: post.parent_post_id ?? null,
+      updated_at: post.updated_at ?? null,
     }));
 
   } catch (error) {
@@ -76,8 +70,48 @@ export async function fetchAllPosts(): Promise<DatabasePost[]> {
   }
 }
 
+export async function fetchPostById(postId: string): Promise<Post | null> {
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('id', postId)
+      .single(); // Use .single() since we're fetching one post
+
+    if (error) {
+      console.error('Error fetching post:', error);
+      return null;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description ?? null,
+      types: data.types ?? [],
+      cover_image_url: data.cover_image_url ?? "",
+      _url: data._url,
+      parent_id: data.parent_id ?? "",
+      child_id: data.child_id ?? "",
+      user_id: data.user_id ?? null,
+      created_at: data.created_at ?? null,
+      duration: data.duration ?? null,
+      is_remix: data.is_remix ?? null,
+      parent_post_id: data.parent_post_id ?? null,
+      updated_at: data.updated_at ?? null,
+    };
+
+  } catch (error) {
+    console.error('Error in fetchPostById:', error);
+    return null;
+  }
+}
+
 // Transform posts to MetaGraph format
-export function transformPostsToGraphData(posts: DatabasePost[]): GraphData {
+export function transformPostsToGraphData(posts: Post[]): GraphData {
   // Create nodes from posts
   const nodes: GraphNode[] = posts.map(post => ({
     id: post.id,
@@ -87,7 +121,7 @@ export function transformPostsToGraphData(posts: DatabasePost[]): GraphData {
       parent: post.parent_id || "",
       child: post.child_id || "",
     },
-    coverImageUrl: post.cover_image_url,
+    coverImageUrl: post.cover_image_url ?? undefined,
     audioUrl: post._url,
   }));
 
@@ -118,7 +152,7 @@ export function transformPostsToGraphData(posts: DatabasePost[]): GraphData {
 }
 
 // Get all unique types from posts
-export function extractTypesFromPosts(posts: DatabasePost[]): string[] {
+export function extractTypesFromPosts(posts: Post[]): string[] {
   const typesSet = new Set<string>();
   
   posts.forEach(post => {
@@ -152,4 +186,14 @@ export function createTypeColorMap(types: string[]): Record<string, string> {
   });
 
   return colorMap;
+}
+
+export function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const day = date.getDate().toString().padStart(2, '0');
+  const year = date.getFullYear();
+  
+  return `${month} ${day}, ${year}`;
 }

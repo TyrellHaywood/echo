@@ -1,6 +1,10 @@
+// Dependencies
 import React, { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ForceGraphMethods } from "react-force-graph-2d";
+
+// Utils
 import {
   fetchAllPosts,
   transformPostsToGraphData,
@@ -21,6 +25,7 @@ const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
 });
 
 export default function MetaGraph() {
+  const router = useRouter();
   const fgRef = useRef<ForceGraphMethods>(undefined);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [availableTypes, setAvailableTypes] = useState<string[]>([]);
@@ -179,8 +184,10 @@ export default function MetaGraph() {
   };
 
   const handleNodeClick = (node: GraphNode) => {
-    // TODO: Add audio playback functionality
-    console.log("Clicked node:", node.name, "Audio URL:", node.audioUrl);
+    // Navigate to the post page if router is available
+    if (typeof window !== "undefined" && router) {
+      router.push(`/post/${node.id}`);
+    }
   };
 
   if (loading) {
