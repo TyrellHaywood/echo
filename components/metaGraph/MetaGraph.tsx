@@ -12,7 +12,7 @@ import {
   GraphData,
   GraphNode,
 } from "@/utils/dataTransformer";
-import { extractTypesFromPosts } from "@/utils/postUtils";
+import { extractTypesFromPosts } from "@/utils/postInteractions";
 
 // Dynamically import ForceGraph2D with SSR disabled
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {

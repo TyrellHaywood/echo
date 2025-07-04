@@ -3,6 +3,12 @@ import { Database } from '../types/supabase';
 
 type Post = Database['public']['Tables']['posts']['Row'];
 
+export type PostWithInteractions = Database["public"]["Tables"]["posts"]["Row"] & {
+  likes: { id: string; user_id: string }[];
+  comments: { id: string; content: string; created_at: string | null }[];
+  profiles: Database["public"]["Tables"]["profiles"]["Row"] | null;
+};
+
 // Get all unique types from posts
 export function extractTypesFromPosts(posts: Post[]): string[] {
   const typesSet = new Set<string>();
@@ -125,50 +131,60 @@ export async function addComment(postId: string, userId: string, content: string
   }
 }
 
-export async function getPostWithInteractions(postId: string) {
+export async function getPostWithInteractions(postId: string): Promise<PostWithInteractions | null> {
   try {
-    const { data, error } = await supabase
-      .from('posts')
+    // First get the post with likes and comments
+    const { data: postData, error: postError } = await supabase
+      .from("posts")
       .select(`
         *,
-        profiles:user_id (
-          id,
-          username,
-          name,
-          avatar_url
-        ),
         likes (
           id,
-          user_id,
-          profiles:user_id (
-            id,
-            username,
-            name,
-            avatar_url
-          )
+          user_id
         ),
         comments (
           id,
           content,
-          created_at,
-          profiles:user_id (
-            id,
-            username,
-            name,
-            avatar_url
-          )
+          created_at
         )
       `)
-      .eq('id', postId)
+      .eq("id", postId)
       .single();
 
-    if (error) throw error;
-    return data;
+    if (postError || !postData) {
+      console.error("Error fetching post:", postError);
+      return null;
+    }
+    
+    // Then fetch the profile separately using the post's user_id
+    let profileData = null;
+    if (postData.user_id) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", postData.user_id)
+        .single();
+      
+      if (!profileError) {
+        profileData = profile;
+      }
+    }
+    
+    // Construct the full response
+    const postWithInteractions: PostWithInteractions = {
+      ...postData,
+      likes: postData.likes || [],
+      comments: postData.comments || [],
+      profiles: profileData
+    };
+
+    return postWithInteractions;
   } catch (error) {
-    console.error('Error fetching post with interactions:', error);
-    throw error;
+    console.error("Error in getPostWithInteractions:", error);
+    return null;
   }
 }
+
 
 export async function checkUserLikedPost(postId: string, userId: string) {
   try {

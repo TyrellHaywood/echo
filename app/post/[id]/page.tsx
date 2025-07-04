@@ -5,11 +5,19 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Database } from "@/types/supabase";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 
 // Utils
 import { formatDate } from "@/utils/dataTransformer";
-import { fetchPostById } from "@/utils/postUtils";
 import { supabase } from "@/utils/supabase";
+import {
+  fetchPostById,
+  getPostWithInteractions,
+  toggleLike,
+  addComment,
+  checkUserLikedPost,
+} from "@/utils/postInteractions";
+import type { PostWithInteractions } from "@/utils/postInteractions";
 
 // Shadcn components
 import { Menubar, MenubarMenu } from "@/components/ui/menubar";
@@ -35,9 +43,11 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export default function PostPage() {
   const router = useRouter();
 
+  const { user } = useAuth();
+
   const params = useParams();
   const id = params?.id as string | undefined;
-  const [post, setPost] = useState<Post | null>(null);
+  const [post, setPost] = useState<PostWithInteractions | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,28 +55,33 @@ export default function PostPage() {
     null
   );
 
+  const [userLiked, setUserLiked] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [isAddingComment, setIsAddingComment] = useState(false);
+
   const [playing, setPlaying] = useState(true);
 
   // Fetch post by ID from URL params
-  useEffect(() => {
+  const loadPost = async () => {
     if (!id || typeof id !== "string") return;
-    const loadPost = async () => {
-      try {
-        setLoading(true);
-        const postData = await fetchPostById(id);
+    try {
+      setLoading(true);
+      const postData = await getPostWithInteractions(id);
 
-        if (!postData) {
-          setError("Post not found");
-        } else {
-          setPost(postData);
-        }
-      } catch (err) {
-        setError("Failed to load post");
-        console.error("Error loading post:", err);
-      } finally {
-        setLoading(false);
+      if (!postData) {
+        setError("Post not found");
+      } else {
+        setPost(postData);
       }
-    };
+    } catch (err) {
+      setError("Failed to load post");
+      console.error("Error loading post:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadPost();
   }, [id]);
 
@@ -86,6 +101,36 @@ export default function PostPage() {
 
     fetchCurrentUserProfile();
   }, [post?.user_id]);
+
+  const checkIfUserLiked = async () => {
+    if (!user || !post) return;
+    try {
+      const liked = await checkUserLikedPost(post.id, user.id);
+      setUserLiked(liked);
+    } catch (err) {
+      console.error("Error checking like status:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (post && user) {
+      checkIfUserLiked();
+    }
+  }, [post, user]);
+
+  const handleLike = async () => {
+    if (!user || !post) return;
+
+    try {
+      const result = await toggleLike(post.id, user.id);
+      setUserLiked(result.liked);
+
+      // Update post data to reflect new like count
+      await loadPost();
+    } catch (err) {
+      console.error("Error toggling like:", err);
+    }
+  };
 
   const handlePlayPause = () => {
     // TODO: Implement audio playback logic
@@ -165,7 +210,17 @@ export default function PostPage() {
         <Menubar className="w-[296px] m-auto flex justify-between px-2.5 py-4 bg-background/50 backdrop-blur-md shadow-inner">
           <MenubarMenu>
             <Waypoints />
-            <Heart />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLike}
+              className={`flex items-center gap-2 ${
+                userLiked ? "text-red-500" : ""
+              }`}
+            >
+              <Heart className={userLiked ? "fill-current" : ""} size={16} />
+              <span>{post?.likes.length}</span>
+            </Button>
             <MessageCircle />
             <Send />
           </MenubarMenu>
