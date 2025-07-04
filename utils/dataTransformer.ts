@@ -70,46 +70,6 @@ export async function fetchAllPosts(): Promise<Post[]> {
   }
 }
 
-export async function fetchPostById(postId: string): Promise<Post | null> {
-  try {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('id', postId)
-      .single(); // Use .single() since we're fetching one post
-
-    if (error) {
-      console.error('Error fetching post:', error);
-      return null;
-    }
-
-    if (!data) {
-      return null;
-    }
-
-    return {
-      id: data.id,
-      title: data.title,
-      description: data.description ?? null,
-      types: data.types ?? [],
-      cover_image_url: data.cover_image_url ?? "",
-      _url: data._url,
-      parent_id: data.parent_id ?? "",
-      child_id: data.child_id ?? "",
-      user_id: data.user_id ?? null,
-      created_at: data.created_at ?? null,
-      duration: data.duration ?? null,
-      is_remix: data.is_remix ?? null,
-      parent_post_id: data.parent_post_id ?? null,
-      updated_at: data.updated_at ?? null,
-    };
-
-  } catch (error) {
-    console.error('Error in fetchPostById:', error);
-    return null;
-  }
-}
-
 // Transform posts to MetaGraph format
 export function transformPostsToGraphData(posts: Post[]): GraphData {
   // Create nodes from posts
@@ -149,19 +109,6 @@ export function transformPostsToGraphData(posts: Post[]): GraphData {
   });
 
   return { nodes, links };
-}
-
-// Get all unique types from posts
-export function extractTypesFromPosts(posts: Post[]): string[] {
-  const typesSet = new Set<string>();
-  
-  posts.forEach(post => {
-    if (post.types) {
-      post.types.forEach(type => typesSet.add(type));
-    }
-  });
-
-  return Array.from(typesSet).sort();
 }
 
 // Create color mapping for types

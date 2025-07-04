@@ -7,7 +7,8 @@ import { Database } from "@/types/supabase";
 import { useRouter } from "next/navigation";
 
 // Utils
-import { fetchPostById, formatDate } from "@/utils/dataTransformer";
+import { formatDate } from "@/utils/dataTransformer";
+import { fetchPostById } from "@/utils/postUtils";
 import { supabase } from "@/utils/supabase";
 
 // Shadcn components
