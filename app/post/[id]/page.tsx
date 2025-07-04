@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 
 // Utils
 import { fetchPostById } from "@/utils/dataTransformer";
+import { supabase } from "@/utils/supabase";
 
 // Shadcn components
 import { Menubar, MenubarMenu } from "@/components/ui/menubar";
@@ -28,6 +29,7 @@ import {
 } from "lucide-react";
 
 type Post = Database["public"]["Tables"]["posts"]["Row"];
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 export default function PostPage() {
   const router = useRouter();
@@ -38,11 +40,15 @@ export default function PostPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(
+    null
+  );
+
   const [playing, setPlaying] = useState(true);
 
+  // Fetch post by ID from URL params
   useEffect(() => {
     if (!id || typeof id !== "string") return;
-
     const loadPost = async () => {
       try {
         setLoading(true);
@@ -60,9 +66,25 @@ export default function PostPage() {
         setLoading(false);
       }
     };
-
     loadPost();
   }, [id]);
+
+  // Fetch current user's profile
+  useEffect(() => {
+    const fetchCurrentUserProfile = async () => {
+      if (post?.user_id) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", post?.user_id)
+          .single();
+
+        setCurrentUserProfile(data);
+      }
+    };
+
+    fetchCurrentUserProfile();
+  }, [post?.user_id]);
 
   const handlePlayPause = () => {
     // TODO: Implement audio playback logic
@@ -103,7 +125,11 @@ export default function PostPage() {
           <span className="text-title font-plex-serif">{post?.title}</span>
           {/* author */}
           <div>
-            <Avatar />
+            <Avatar
+              src={currentUserProfile?.avatar_url ?? undefined}
+              alt={currentUserProfile?.name || "user_id"}
+              fallback={currentUserProfile?.name?.charAt(0) || "A"}
+            />
           </div>
         </div>
 
