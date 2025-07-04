@@ -93,8 +93,8 @@ export default function PostPage() {
   };
 
   return (
-    <div className="w-screen h-screen p-4">
-      <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md bg-[#F2F2F2] bg-opacity-75">
+    <div className="w-screen h-screen sm:p-4">
+      <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2] bg-opacity-75">
         {/* header */}
         <div className="flex flex-row justify-between">
           <Button
@@ -103,7 +103,7 @@ export default function PostPage() {
             onClick={() => {
               router.push(`/`);
             }}
-            className="bg-[#e5e5e5] backdrop-blur-md shadow-inner"
+            className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner"
           >
             <X />
           </Button>
@@ -120,7 +120,7 @@ export default function PostPage() {
         <Separator className="" />
 
         {/* content */}
-        <div className="w-1/2 lg:w-1/3 h-full m-auto flex flex-col">
+        <div className="w-full sm:w-1/2 lg:w-1/3 h-full m-auto flex flex-col">
           {/* title */}
           <span className="text-title font-plex-serif">{post?.title}</span>
           {/* author */}
@@ -140,12 +140,12 @@ export default function PostPage() {
             </div>
           </div>
           {/* meta tags */}
-          <div className="mt-5 flex flex-row gap-2 items-center">
+          <div className="mt-5 flex flex-row flex-wrap gap-2 items-center">
             {post?.types?.map((type, index) => (
               <Badge
                 key={index}
                 variant="outline"
-                className="bg-background/50 backdrop-blur-md shadow-inner px-5 py-1 text-description font-source-sans"
+                className="bg-background/50 backdrop-blur-md shadow-inner sm:px-5 sm:py-1 text-description font-source-sans"
               >
                 {type}
               </Badge>
