@@ -3,17 +3,42 @@
 // Dependencies
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { fetchPostById } from "@/utils/dataTransformer";
 import { Database } from "@/types/supabase";
+import { useRouter } from "next/navigation";
+
+// Utils
+import { fetchPostById } from "@/utils/dataTransformer";
+
+// Shadcn components
+import { Menubar, MenubarMenu } from "@/components/ui/menubar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+
+// Icons
+import {
+  X,
+  Play,
+  Pause,
+  Waypoints,
+  Heart,
+  MessageCircle,
+  Send,
+} from "lucide-react";
 
 type Post = Database["public"]["Tables"]["posts"]["Row"];
 
 export default function PostPage() {
+  const router = useRouter();
+
   const params = useParams();
   const id = params?.id as string | undefined;
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [playing, setPlaying] = useState(true);
 
   useEffect(() => {
     if (!id || typeof id !== "string") return;
@@ -39,5 +64,51 @@ export default function PostPage() {
     loadPost();
   }, [id]);
 
-  return <>{post && <h1>{post.title}</h1>}</>;
+  const handlePlayPause = () => {
+    // TODO: Implement audio playback logic
+
+    setPlaying(!playing);
+  };
+
+  return (
+    <div className="w-screen h-screen p-4">
+      <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md bg-[#F2F2F2] bg-opacity-75">
+        {/* header */}
+        <div className="flex flex-row justify-between">
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => {
+              router.push(`/`);
+            }}
+            className="bg-[#e5e5e5] backdrop-blur-md shadow-inner"
+          >
+            <X />
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={handlePlayPause}
+            className="bg-[#e5e5e5] p-0 bg-transparent hover:bg-transparent backdrop-blur-md flex flex-row text-foreground opacity-75 hover:opacity-100 transition-opacity duration-200 ease-in-out"
+          >
+            {playing ? <Pause /> : <Play />}
+            Playing
+          </Button>
+        </div>
+
+        <Separator className="" />
+
+        {/* content */}
+        <div className="w-1/2 md:w-1/3 h-full m-auto flex flex-col">
+          {/* title */}
+          <span className="text-title font-plex-serif">{post?.title}</span>
+          {/* author */}
+          <div>
+            <Avatar />
+          </div>
+        </div>
+
+        {/* menubar */}
+      </div>
+    </div>
+  );
 }
