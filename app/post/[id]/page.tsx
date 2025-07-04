@@ -120,7 +120,7 @@ export default function PostPage() {
         <Separator className="" />
 
         {/* content */}
-        <div className="w-1/2 md:w-1/3 h-full m-auto flex flex-col">
+        <div className="w-1/2 lg:w-1/3 h-full m-auto flex flex-col">
           {/* title */}
           <span className="text-title font-plex-serif">{post?.title}</span>
           {/* author */}
@@ -139,6 +139,23 @@ export default function PostPage() {
               </span>
             </div>
           </div>
+          {/* meta tags */}
+          <div className="mt-5 flex flex-row gap-2 items-center">
+            {post?.types?.map((type, index) => (
+              <Badge
+                key={index}
+                variant="outline"
+                className="bg-background/50 backdrop-blur-md shadow-inner px-5 py-1 text-description font-source-sans"
+              >
+                {type}
+              </Badge>
+            ))}
+          </div>
+          <Separator className="my-9" />
+          {/* description */}
+          <span className="w-full h-auto text-description font-source-sans">
+            {post?.description}
+          </span>
         </div>
 
         {/* menubar */}
