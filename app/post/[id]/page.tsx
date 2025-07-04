@@ -7,7 +7,7 @@ import { Database } from "@/types/supabase";
 import { useRouter } from "next/navigation";
 
 // Utils
-import { fetchPostById } from "@/utils/dataTransformer";
+import { fetchPostById, formatDate } from "@/utils/dataTransformer";
 import { supabase } from "@/utils/supabase";
 
 // Shadcn components
@@ -124,12 +124,20 @@ export default function PostPage() {
           {/* title */}
           <span className="text-title font-plex-serif">{post?.title}</span>
           {/* author */}
-          <div>
+          <div className="mt-3 flex flex-row gap-2 items-center">
             <Avatar
               src={currentUserProfile?.avatar_url ?? undefined}
               alt={currentUserProfile?.name || "user_id"}
-              fallback={currentUserProfile?.name?.charAt(0) || "A"}
             />
+            {/* text */}
+            <div>
+              <span className="text-description font-source-sans">
+                {currentUserProfile?.name}
+              </span>
+              <span className="text-metadata font-source-sans">
+                {post?.created_at && formatDate(post.created_at)}
+              </span>
+            </div>
           </div>
         </div>
 
