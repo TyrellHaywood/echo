@@ -212,14 +212,22 @@ export default function PostPage() {
             <Waypoints />
             <Button
               variant="ghost"
-              size="sm"
               onClick={handleLike}
-              className={`flex items-center gap-2 ${
-                userLiked ? "text-red-500" : ""
+              className={`flex items-center gap-2 hover:bg-transparent  ${
+                userLiked
+                  ? "text-red-500 hover:text-red-500"
+                  : "hover:opacity-70"
               }`}
+              title="Like"
             >
-              <Heart className={userLiked ? "fill-current" : ""} size={16} />
-              <span>{post?.likes.length}</span>
+              <Heart
+                className={`!w-6 !h-6  ${userLiked ? "fill-current" : ""}`}
+              />
+              {(post?.likes?.length ?? 0) > 0 && (
+                <span className="text-foreground">
+                  {post?.likes?.length ?? 0}
+                </span>
+              )}
             </Button>
             <MessageCircle />
             <Send />
