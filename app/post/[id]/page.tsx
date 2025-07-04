@@ -94,7 +94,7 @@ export default function PostPage() {
 
   return (
     <div className="w-screen h-screen sm:p-4">
-      <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2] bg-opacity-75">
+      <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75">
         {/* header */}
         <div className="flex flex-row justify-between">
           <Button
@@ -117,7 +117,7 @@ export default function PostPage() {
           </Button>
         </div>
 
-        <Separator className="" />
+        <Separator />
 
         {/* content */}
         <div className="w-full sm:w-1/2 lg:w-1/3 h-full m-auto flex flex-col">
@@ -158,7 +158,17 @@ export default function PostPage() {
           </span>
         </div>
 
+        <Separator />
+
         {/* menubar */}
+        <Menubar className="w-[296px] m-auto flex justify-between px-2.5 py-4 bg-background/50 backdrop-blur-md shadow-inner">
+          <MenubarMenu>
+            <Waypoints />
+            <Heart />
+            <MessageCircle />
+            <Send />
+          </MenubarMenu>
+        </Menubar>
       </div>
     </div>
   );
