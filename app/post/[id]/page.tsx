@@ -1,5 +1,7 @@
+"use client";
+
 // Dependencies
-import { useRouter } from "next/router";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchPostById } from "@/utils/dataTransformer";
 import { Database } from "@/types/supabase";
@@ -7,8 +9,8 @@ import { Database } from "@/types/supabase";
 type Post = Database["public"]["Tables"]["posts"]["Row"];
 
 export default function PostPage() {
-  const router = useRouter();
-  const { id } = router.query;
+  const params = useParams();
+  const id = params?.id as string | undefined;
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
