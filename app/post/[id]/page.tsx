@@ -153,7 +153,7 @@ export default function PostPage() {
           </div>
           <Separator className="my-9" />
           {/* description */}
-          <span className="w-full h-auto text-description font-source-sans">
+          <span className="w-full h-auto text-description font-source-sans whitespace-pre-line">
             {post?.description}
           </span>
         </div>
