@@ -5,7 +5,13 @@ type Post = Database['public']['Tables']['posts']['Row'];
 
 export type PostWithInteractions = Database["public"]["Tables"]["posts"]["Row"] & {
   likes: { id: string; user_id: string }[];
-  comments: { id: string; content: string; created_at: string | null }[];
+  comments: { 
+    id: string; 
+    content: string; 
+    created_at: string | null;
+    user_id: string | null;
+    parent_comment_id: string | null;
+  }[];
   profiles: Database["public"]["Tables"]["profiles"]["Row"] | null;
 };
 
@@ -101,25 +107,21 @@ export async function toggleLike(postId: string, userId: string) {
   }
 }
 
-export async function addComment(postId: string, userId: string, content: string) {
+export async function addComment(postId: string, userId: string, content: string, parentCommentId?: string | null) {
   try {
     const { data, error } = await supabase
       .from('comments')
       .insert({
         post_id: postId,
         user_id: userId,
-        content: content.trim()
+        content: content.trim(),
+        parent_comment_id: parentCommentId || null
       })
       .select(`
         id,
         content,
         created_at,
-        profiles:user_id (
-          id,
-          username,
-          name,
-          avatar_url
-        )
+        parent_comment_id
       `)
       .single();
 
@@ -145,7 +147,9 @@ export async function getPostWithInteractions(postId: string): Promise<PostWithI
         comments (
           id,
           content,
-          created_at
+          created_at,
+          user_id,
+          parent_comment_id
         )
       `)
       .eq("id", postId)

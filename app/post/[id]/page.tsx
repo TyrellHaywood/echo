@@ -26,6 +26,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 
+// Components
+import Comments from "@/components/post/Comments";
+
 // Icons
 import {
   X,
@@ -57,6 +60,7 @@ export default function PostPage() {
 
   const [userLiked, setUserLiked] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [showComments, setShowComments] = useState(false);
   const [isAddingComment, setIsAddingComment] = useState(false);
 
   const [playing, setPlaying] = useState(true);
@@ -140,7 +144,7 @@ export default function PostPage() {
 
   return (
     <div className="w-screen h-screen sm:p-4">
-      <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75">
+      <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75 overflow-hidden">
         {/* header */}
         <div className="flex flex-row justify-between">
           <Button
@@ -166,42 +170,49 @@ export default function PostPage() {
         <Separator />
 
         {/* content */}
-        <div className="w-full sm:w-1/2 lg:w-1/3 h-full m-auto flex flex-col">
-          {/* title */}
-          <span className="text-title font-plex-serif">{post?.title}</span>
-          {/* author */}
-          <div className="mt-3 flex flex-row gap-2 items-center">
-            <Avatar
-              src={currentUserProfile?.avatar_url ?? undefined}
-              alt={currentUserProfile?.name || "user_id"}
-            />
-            {/* text */}
-            <div className="flex flex-col">
-              <span className="text-description font-source-sans">
-                {currentUserProfile?.name}
-              </span>
-              <span className="text-metadata font-source-sans uppercase">
-                {post?.created_at && formatDate(post.created_at)}
-              </span>
+        <div className="w-full overflow-auto">
+          <div className="w-full sm:w-1/2 lg:w-1/3 h-full m-auto flex flex-col">
+            {/* title */}
+            <span className="text-title font-plex-serif">{post?.title}</span>
+            {/* author */}
+            <div className="mt-3 flex flex-row gap-2 items-center">
+              <Avatar
+                src={currentUserProfile?.avatar_url ?? undefined}
+                alt={currentUserProfile?.name || "user_id"}
+              />
+              {/* text */}
+              <div className="flex flex-col">
+                <span className="text-description font-source-sans">
+                  {currentUserProfile?.name}
+                </span>
+                <span className="text-metadata font-source-sans uppercase">
+                  {post?.created_at && formatDate(post.created_at)}
+                </span>
+              </div>
             </div>
+            {/* meta tags */}
+            <div className="mt-5 flex flex-row flex-wrap gap-2 items-center">
+              {post?.types?.map((type, index) => (
+                <Badge
+                  key={index}
+                  variant="outline"
+                  className="bg-background/50 backdrop-blur-md shadow-inner sm:px-5 sm:py-1 text-description font-source-sans"
+                >
+                  {type}
+                </Badge>
+              ))}
+            </div>
+            <Separator className="my-9" />
+            {/* Toggle between description and comments */}
+            <div></div>
+            {showComments ? (
+              <Comments postId={post?.id || ""} />
+            ) : (
+              <span className="w-full h-auto text-description font-source-sans whitespace-pre-line">
+                {post?.description}
+              </span>
+            )}
           </div>
-          {/* meta tags */}
-          <div className="mt-5 flex flex-row flex-wrap gap-2 items-center">
-            {post?.types?.map((type, index) => (
-              <Badge
-                key={index}
-                variant="outline"
-                className="bg-background/50 backdrop-blur-md shadow-inner sm:px-5 sm:py-1 text-description font-source-sans"
-              >
-                {type}
-              </Badge>
-            ))}
-          </div>
-          <Separator className="my-9" />
-          {/* description */}
-          <span className="w-full h-auto text-description font-source-sans whitespace-pre-line">
-            {post?.description}
-          </span>
         </div>
 
         <Separator />
@@ -210,6 +221,7 @@ export default function PostPage() {
         <Menubar className="w-[296px] m-auto flex justify-between px-2.5 py-4 bg-background/50 backdrop-blur-md shadow-inner">
           <MenubarMenu>
             <Waypoints />
+            {/* Like post */}
             <Button
               variant="ghost"
               onClick={handleLike}
@@ -229,7 +241,26 @@ export default function PostPage() {
                 </span>
               )}
             </Button>
-            <MessageCircle />
+            {/* Comment */}
+            <Button
+              variant="ghost"
+              onClick={() => setShowComments(!showComments)}
+              className={`flex items-center gap-2 hover:bg-transparent ${
+                showComments ? "text-primary" : "hover:opacity-70"
+              }`}
+              title={showComments ? "Hide comments" : "Show comments"}
+            >
+              <MessageCircle
+                className={`!w-6 !h-6 ${
+                  showComments ? "fill-background stroke-primary" : ""
+                }`}
+              />
+              {(post?.comments?.length ?? 0) > 0 && (
+                <span className="text-foreground">
+                  {post?.comments?.length ?? 0}
+                </span>
+              )}
+            </Button>
             <Send />
           </MenubarMenu>
         </Menubar>
