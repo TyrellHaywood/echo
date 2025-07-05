@@ -26,6 +26,7 @@ interface Comment {
   parent_comment_id: string | null;
   profile?: Profile | null;
   replies?: Comment[];
+  likes?: { id: string; user_id: string }[];
 }
 
 interface CommentsProps {

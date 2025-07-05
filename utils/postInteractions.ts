@@ -209,3 +209,64 @@ export async function checkUserLikedPost(postId: string, userId: string) {
     return false;
   }
 }
+
+// Check if a user liked a comment
+export async function checkUserLikedComment(commentId: string, userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('comment_likes')
+      .select('id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    return !!data;
+  } catch (error) {
+    console.error('Error checking if user liked comment:', error);
+    return false;
+  }
+}
+
+// Toggle like on a comment
+export async function toggleCommentLike(commentId: string, userId: string) {
+  try {
+    // Check if user already liked the comment
+    const { data: existingLike, error: checkError } = await supabase
+      .from('comment_likes')
+      .select('id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
+    }
+
+    if (existingLike) {
+      // Unlike the comment
+      const { error: deleteError } = await supabase
+        .from('comment_likes')
+        .delete()
+        .eq('comment_id', commentId)
+        .eq('user_id', userId);
+
+      if (deleteError) throw deleteError;
+      return { liked: false };
+    } else {
+      // Like the comment
+      const { error: insertError } = await supabase
+        .from('comment_likes')
+        .insert({ comment_id: commentId, user_id: userId });
+
+      if (insertError) throw insertError;
+      return { liked: true };
+    }
+  } catch (error) {
+    console.error('Error toggling comment like:', error);
+    throw error;
+  }
+}
