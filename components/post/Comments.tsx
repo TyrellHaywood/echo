@@ -6,7 +6,12 @@ import { useAuth } from "@/components/AuthProvider";
 
 // Utils
 import { formatDate } from "@/utils/dataTransformer";
-import { addComment, PostWithInteractions } from "@/utils/postInteractions";
+import {
+  addComment,
+  PostWithInteractions,
+  checkUserLikedComment,
+  toggleCommentLike,
+} from "@/utils/postInteractions";
 import { supabase } from "@/utils/supabase";
 import { Profile } from "@/utils/supabase";
 
@@ -46,6 +51,8 @@ const CommentItem = ({
   userProfiles,
   user,
   replyTextareaRef,
+  handleCommentLike,
+  userLikedComments,
 }: {
   comment: Comment;
   replyingTo: string | null;
@@ -57,8 +64,11 @@ const CommentItem = ({
   userProfiles: Record<string, Profile>;
   user: any;
   replyTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  handleCommentLike: (commentId: string) => Promise<void>;
+  userLikedComments: Record<string, boolean>;
 }) => {
   const isReplying = replyingTo === comment.id;
+  const isLiked = userLikedComments[comment.id] || false;
 
   return (
     <div className="flex flex-col items-start">
@@ -91,10 +101,24 @@ const CommentItem = ({
             <div className="flex gap-4 mt-2">
               <Button
                 variant="ghost"
-                className="h-auto p-0 text-muted-foreground hover:text-foreground font-source-sans"
+                className={`h-auto p-0 hover:bg-transparent ${
+                  isLiked
+                    ? "text-red-500 hover:text-red-500"
+                    : "text-muted-foreground hover:text-foreground"
+                } font-source-sans`}
+                onClick={() => handleCommentLike(comment.id)}
               >
-                <Heart />
-                <span className="text-metadata">LIKE</span>
+                <Heart className={isLiked ? "fill-current" : ""} />
+                <div className="flex flex-row items-center gap-1">
+                  <span className="text-metadata">
+                    {isLiked ? "LIKED" : "LIKE"}
+                  </span>
+                  {comment.likes && comment.likes.length > 0 && (
+                    <span className="text-metadata">
+                      ({comment.likes.length})
+                    </span>
+                  )}
+                </div>
               </Button>
               <Button
                 variant="ghost"
@@ -127,6 +151,8 @@ const CommentItem = ({
                 userProfiles={userProfiles}
                 user={user}
                 replyTextareaRef={replyTextareaRef}
+                handleCommentLike={handleCommentLike}
+                userLikedComments={userLikedComments}
               />
             ))}
           </div>
@@ -182,6 +208,10 @@ export default function Comments({ postId, post }: CommentsProps) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [userProfiles, setUserProfiles] = useState<Record<string, Profile>>({});
 
+  const [userLikedComments, setUserLikedComments] = useState<
+    Record<string, boolean>
+  >({});
+
   // Add ref for reply textarea
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -200,14 +230,23 @@ export default function Comments({ postId, post }: CommentsProps) {
     try {
       const { data, error } = await supabase
         .from("comments")
-        .select("*")
+        .select(
+          `
+        *,
+        comment_likes (
+          id,
+          user_id
+        )
+      `
+        )
         .eq("post_id", postId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
 
       if (data) {
-        // Get all user IDs from comments to fetch their profiles
+        // Process the comments as before
+        // Add the likes to each comment
         const userIds = [
           ...new Set(data.map((comment) => comment.user_id).filter(Boolean)),
         ] as string[];
@@ -217,7 +256,7 @@ export default function Comments({ postId, post }: CommentsProps) {
 
         // Only fetch profiles if we have user IDs
         if (userIds.length > 0) {
-          // Fetch user profiles for all comment authors
+          // Fetch user profiles as before
           const { data: profiles } = await supabase
             .from("profiles")
             .select("*")
@@ -238,7 +277,11 @@ export default function Comments({ postId, post }: CommentsProps) {
 
         // First pass: map all comments by ID
         data.forEach((comment) => {
-          commentMap[comment.id] = { ...comment, replies: [] };
+          commentMap[comment.id] = {
+            ...comment,
+            replies: [],
+            likes: comment.comment_likes || [],
+          };
         });
 
         // Second pass: build the nested structure
@@ -274,7 +317,7 @@ export default function Comments({ postId, post }: CommentsProps) {
   useEffect(() => {
     fetchComments();
 
-    // Set up real-time subscription for comments
+    // Set up real-time subscription for comments and comment_likes
     const commentsSubscription = supabase
       .channel("comments-channel")
       .on(
@@ -287,6 +330,18 @@ export default function Comments({ postId, post }: CommentsProps) {
         },
         () => {
           fetchComments();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "comment_likes",
+        },
+        () => {
+          fetchComments();
+          checkUserCommentLikes();
         }
       )
       .subscribe();
@@ -315,6 +370,57 @@ export default function Comments({ postId, post }: CommentsProps) {
       console.error("Error adding comment:", err);
     } finally {
       setIsAddingComment(false);
+    }
+  };
+
+  // Check which comments the current user has liked
+  const checkUserCommentLikes = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("comment_likes")
+        .select("comment_id")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      const likedComments: Record<string, boolean> = {};
+      if (data) {
+        data.forEach((like) => {
+          likedComments[like.comment_id] = true;
+        });
+      }
+
+      setUserLikedComments(likedComments);
+    } catch (err) {
+      console.error("Error checking user comment likes:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      checkUserCommentLikes();
+    }
+  }, [user]);
+
+  // Handle comment like toggle
+  const handleCommentLike = async (commentId: string) => {
+    if (!user) return;
+
+    try {
+      const result = await toggleCommentLike(commentId, user.id);
+
+      // Update the local state
+      setUserLikedComments((prev) => ({
+        ...prev,
+        [commentId]: result.liked,
+      }));
+
+      // Refresh comments to update like counts
+      await fetchComments();
+    } catch (err) {
+      console.error("Error liking comment:", err);
     }
   };
 
@@ -370,6 +476,8 @@ export default function Comments({ postId, post }: CommentsProps) {
               userProfiles={userProfiles}
               user={user}
               replyTextareaRef={replyTextareaRef}
+              handleCommentLike={handleCommentLike}
+              userLikedComments={userLikedComments}
             />
           ))
         ) : (
