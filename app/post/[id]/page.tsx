@@ -206,7 +206,7 @@ export default function PostPage() {
             {/* Toggle between description and comments */}
             <div></div>
             {showComments ? (
-              <Comments postId={post?.id || ""} />
+              <Comments postId={post?.id || ""} post={post} />
             ) : (
               <span className="w-full h-auto text-description font-source-sans whitespace-pre-line">
                 {post?.description}

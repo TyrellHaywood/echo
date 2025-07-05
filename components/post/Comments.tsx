@@ -1,12 +1,12 @@
 "use client";
 
 // Dependencies
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
 
 // Utils
 import { formatDate } from "@/utils/dataTransformer";
-import { addComment } from "@/utils/postInteractions";
+import { addComment, PostWithInteractions } from "@/utils/postInteractions";
 import { supabase } from "@/utils/supabase";
 import { Profile } from "@/utils/supabase";
 
@@ -30,15 +30,169 @@ interface Comment {
 
 interface CommentsProps {
   postId: string;
+  post?: PostWithInteractions | null;
 }
 
-export default function Comments({ postId }: CommentsProps) {
+// Move CommentItem outside the main component
+const CommentItem = ({
+  comment,
+  replyingTo,
+  setReplyingTo,
+  commentText,
+  setCommentText,
+  handleAddComment,
+  isAddingComment,
+  userProfiles,
+  user,
+  replyTextareaRef,
+}: {
+  comment: Comment;
+  replyingTo: string | null;
+  setReplyingTo: (id: string | null) => void;
+  commentText: string;
+  setCommentText: (text: string) => void;
+  handleAddComment: () => Promise<void>;
+  isAddingComment: boolean;
+  userProfiles: Record<string, Profile>;
+  user: any;
+  replyTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
+}) => {
+  const isReplying = replyingTo === comment.id;
+
+  return (
+    <div className="flex flex-col items-start">
+      {/* parent comment */}
+      <div className="flex flex-col gap-2">
+        {/* author */}
+        <div className="mt-3 flex flex-row gap-2 items-center">
+          <Avatar
+            src={comment.profile?.avatar_url ?? undefined}
+            alt={comment.profile?.name || "user"}
+          />
+          {/* text */}
+          <div className="flex flex-row items-center gap-1">
+            <span className="text-description font-source-sans">
+              {comment.profile?.name || "Anonymous"}
+            </span>
+            <span className="text-metadata text-muted-foreground font-source-sans">
+              {comment.created_at && formatDate(comment.created_at)}
+            </span>
+          </div>
+        </div>
+
+        {/* text */}
+        <div className="rounded-md flex flex-row gap-2">
+          <Avatar className="invisible" />
+          <div className="flex flex-col">
+            <p className="text-description whitespace-pre-line font-source-sans">
+              {comment.content}
+            </p>
+            <div className="flex gap-4 mt-2">
+              <Button
+                variant="ghost"
+                className="h-auto p-0 text-muted-foreground hover:text-foreground font-source-sans"
+              >
+                <Heart />
+                <span className="text-metadata">LIKE</span>
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-auto p-0 text-muted-foreground hover:text-foreground font-source-sans"
+                onClick={() => setReplyingTo(comment.id)}
+              >
+                <MessageCircle />
+                <span className="text-metadata">REPLY</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+        {/* comment interactions */}
+      </div>
+      {/* replies */}
+      <div className="flex-1">
+        {/* Render replies */}
+        {comment.replies && comment.replies.length > 0 && (
+          <div className="ml-4 mt-2 border-l-[1px] border-border pl-4 flex flex-col gap-1">
+            {comment.replies.map((reply) => (
+              <CommentItem
+                key={reply.id}
+                comment={reply}
+                replyingTo={replyingTo}
+                setReplyingTo={setReplyingTo}
+                commentText={commentText}
+                setCommentText={setCommentText}
+                handleAddComment={handleAddComment}
+                isAddingComment={isAddingComment}
+                userProfiles={userProfiles}
+                user={user}
+                replyTextareaRef={replyTextareaRef}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Reply input if replying to this comment */}
+        {isReplying && (
+          <div className="mt-2 ml-4">
+            <div className="flex gap-3">
+              <Avatar
+                src={userProfiles[user?.id || ""]?.avatar_url ?? undefined}
+                alt="You"
+                className="w-6 h-6"
+              />
+              <div className="flex-1">
+                <Textarea
+                  ref={replyTextareaRef}
+                  placeholder="Write a reply..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  className="min-h-[60px] text-description"
+                />
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setReplyingTo(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleAddComment}
+                    disabled={isAddingComment || !commentText.trim()}
+                  >
+                    Reply
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default function Comments({ postId, post }: CommentsProps) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [userProfiles, setUserProfiles] = useState<Record<string, Profile>>({});
+
+  // Add ref for reply textarea
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Focus the textarea when replying to a comment
+  useEffect(() => {
+    if (replyingTo && replyTextareaRef.current) {
+      // Small timeout to ensure the element is in the DOM
+      setTimeout(() => {
+        replyTextareaRef.current?.focus();
+      }, 0);
+    }
+  }, [replyingTo]);
 
   // Fetch comments for the post
   const fetchComments = async () => {
@@ -163,126 +317,15 @@ export default function Comments({ postId }: CommentsProps) {
     }
   };
 
-  // Recursive component to render a comment and its replies
-  const CommentItem = ({ comment }: { comment: Comment }) => {
-    return (
-      <div className="flex flex-col items-start">
-        {/* parent comment */}
-        <div className="flex flex-col gap-2">
-          {/* author */}
-          <div className="mt-3 flex flex-row gap-2 items-center">
-            <Avatar
-              src={comment.profile?.avatar_url ?? undefined}
-              alt={comment.profile?.name || "user"}
-            />
-            {/* text */}
-            <div className="flex flex-row items-center gap-1">
-              <span className="text-description font-source-sans">
-                {comment.profile?.name || "Anonymous"}
-              </span>
-              <span className="text-metadata text-muted-foreground font-source-sans">
-                {comment.created_at && formatDate(comment.created_at)}
-              </span>
-            </div>
-          </div>
-
-          {/* text */}
-          <div className="rounded-md flex flex-row gap-2">
-            <Avatar className="invisible" />
-            <div className="flex flex-col">
-              <p className="text-description whitespace-pre-line font-source-sans">
-                {comment.content}
-              </p>
-              <div className="flex gap-4 mt-2">
-                <Button
-                  variant="ghost"
-                  className="h-auto p-0 text-muted-foreground hover:text-foreground font-source-sans"
-                >
-                  <Heart />
-                  <span className="text-metadata">LIKE</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="h-auto p-0 text-muted-foreground hover:text-foreground font-source-sans"
-                  onClick={() => setReplyingTo(comment.id)}
-                >
-                  <MessageCircle />
-                  <span className="text-metadata">REPLY</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-          {/* comment interactions */}
-        </div>
-        {/* replies */}
-        <div className="flex-1">
-          {/* Render replies */}
-          {comment.replies && comment.replies.length > 0 && (
-            <div className="ml-4 mt-2 border-l-[1px] border-border pl-4 flex flex-col gap-1">
-              {comment.replies.map((reply) => (
-                <CommentItem key={reply.id} comment={reply} />
-              ))}
-            </div>
-          )}
-
-          {/* Reply input if replying to this comment */}
-          {replyingTo === comment.id && (
-            <div className="mt-2 ml-4">
-              <div className="flex gap-3">
-                <Avatar
-                  src={userProfiles[user?.id || ""]?.avatar_url ?? undefined}
-                  alt="You"
-                  className="w-6 h-6"
-                />
-                <div className="flex-1">
-                  <Textarea
-                    placeholder="Write a reply..."
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    className="min-h-[60px] text-description"
-                  />
-                  <div className="flex justify-end gap-2 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setReplyingTo(null)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleAddComment}
-                      disabled={isAddingComment || !commentText.trim()}
-                    >
-                      Reply
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="w-full">
-      <h3 className="text-lg font-plex-serif mb-4">Comments</h3>
-
-      {/* Comments list */}
-      <div className="space-y-6 mb-6">
-        {comments.length > 0 ? (
-          comments.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} />
-          ))
-        ) : (
-          <p className="text-muted-foreground text-center py-4">
-            No comments yet. Be the first to comment!
-          </p>
+      {/* title */}
+      <div className="flex flex-row gap-2 items-center mb-4 text-foreground text-lg font-plex-serif">
+        {(post?.comments?.length ?? 0) > 0 && (
+          <span>{post?.comments?.length ?? 0}</span>
         )}
+        <h3>Comments</h3>
       </div>
-
       {/* Add new comment */}
       {!replyingTo && (
         <div className="flex gap-3">
@@ -309,6 +352,31 @@ export default function Comments({ postId }: CommentsProps) {
           </div>
         </div>
       )}
+
+      {/* Comments list */}
+      <div className="space-y-6 mb-6">
+        {comments.length > 0 ? (
+          comments.map((comment) => (
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              replyingTo={replyingTo}
+              setReplyingTo={setReplyingTo}
+              commentText={commentText}
+              setCommentText={setCommentText}
+              handleAddComment={handleAddComment}
+              isAddingComment={isAddingComment}
+              userProfiles={userProfiles}
+              user={user}
+              replyTextareaRef={replyTextareaRef}
+            />
+          ))
+        ) : (
+          <p className="text-muted-foreground text-center py-4">
+            No comments yet. Be the first to comment!
+          </p>
+        )}
+      </div>
     </div>
   );
 }
