@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 // Components
 import Comments from "@/components/post/Comments";
@@ -262,7 +263,18 @@ export default function PostPage() {
                   </span>
                 )}
               </Button>
-              <Send />
+              <Button
+                variant="ghost"
+                className="hover:bg-transparent"
+                onClick={() => {
+                  // generate current url and copy it to clipboard
+                  const postUrl = `${window.location.origin}/post/${post?.id}`;
+                  navigator.clipboard.writeText(postUrl);
+                  toast.success("Post URL copied to clipboard!");
+                }}
+              >
+                <Send />
+              </Button>
             </MenubarMenu>
           </Menubar>
         </div>
