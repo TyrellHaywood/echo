@@ -5,7 +5,13 @@ type Post = Database['public']['Tables']['posts']['Row'];
 
 export type PostWithInteractions = Database["public"]["Tables"]["posts"]["Row"] & {
   likes: { id: string; user_id: string }[];
-  comments: { id: string; content: string; created_at: string | null }[];
+  comments: { 
+    id: string; 
+    content: string; 
+    created_at: string | null;
+    user_id: string | null;
+    parent_comment_id: string | null;
+  }[];
   profiles: Database["public"]["Tables"]["profiles"]["Row"] | null;
 };
 
@@ -101,25 +107,21 @@ export async function toggleLike(postId: string, userId: string) {
   }
 }
 
-export async function addComment(postId: string, userId: string, content: string) {
+export async function addComment(postId: string, userId: string, content: string, parentCommentId?: string | null) {
   try {
     const { data, error } = await supabase
       .from('comments')
       .insert({
         post_id: postId,
         user_id: userId,
-        content: content.trim()
+        content: content.trim(),
+        parent_comment_id: parentCommentId || null
       })
       .select(`
         id,
         content,
         created_at,
-        profiles:user_id (
-          id,
-          username,
-          name,
-          avatar_url
-        )
+        parent_comment_id
       `)
       .single();
 
@@ -145,7 +147,9 @@ export async function getPostWithInteractions(postId: string): Promise<PostWithI
         comments (
           id,
           content,
-          created_at
+          created_at,
+          user_id,
+          parent_comment_id
         )
       `)
       .eq("id", postId)
@@ -203,5 +207,66 @@ export async function checkUserLikedPost(postId: string, userId: string) {
   } catch (error) {
     console.error('Error checking if user liked post:', error);
     return false;
+  }
+}
+
+// Check if a user liked a comment
+export async function checkUserLikedComment(commentId: string, userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('comment_likes')
+      .select('id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    return !!data;
+  } catch (error) {
+    console.error('Error checking if user liked comment:', error);
+    return false;
+  }
+}
+
+// Toggle like on a comment
+export async function toggleCommentLike(commentId: string, userId: string) {
+  try {
+    // Check if user already liked the comment
+    const { data: existingLike, error: checkError } = await supabase
+      .from('comment_likes')
+      .select('id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
+    }
+
+    if (existingLike) {
+      // Unlike the comment
+      const { error: deleteError } = await supabase
+        .from('comment_likes')
+        .delete()
+        .eq('comment_id', commentId)
+        .eq('user_id', userId);
+
+      if (deleteError) throw deleteError;
+      return { liked: false };
+    } else {
+      // Like the comment
+      const { error: insertError } = await supabase
+        .from('comment_likes')
+        .insert({ comment_id: commentId, user_id: userId });
+
+      if (insertError) throw insertError;
+      return { liked: true };
+    }
+  } catch (error) {
+    console.error('Error toggling comment like:', error);
+    throw error;
   }
 }
