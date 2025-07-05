@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Analytics } from "@vercel/analytics/next";
+import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
 
@@ -47,6 +48,7 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           {children}
+          <Toaster richColors theme="light" duration={1} />
           <Analytics />
         </AuthProvider>
       </body>

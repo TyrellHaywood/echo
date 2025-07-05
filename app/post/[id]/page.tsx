@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 // Components
 import Comments from "@/components/post/Comments";
@@ -144,7 +145,7 @@ export default function PostPage() {
 
   return (
     <div className="w-screen h-screen sm:p-4">
-      <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75 overflow-hidden">
+      <div className="w-full h-full p-4 pb-[100px] flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75 overflow-hidden">
         {/* header */}
         <div className="flex flex-row justify-between">
           <Button
@@ -204,7 +205,6 @@ export default function PostPage() {
             </div>
             <Separator className="my-9" />
             {/* Toggle between description and comments */}
-            <div></div>
             {showComments ? (
               <Comments postId={post?.id || ""} post={post} />
             ) : (
@@ -215,55 +215,69 @@ export default function PostPage() {
           </div>
         </div>
 
-        <Separator />
-
         {/* menubar */}
-        <Menubar className="w-[296px] m-auto flex justify-between px-2.5 py-4 bg-background/50 backdrop-blur-md shadow-inner">
-          <MenubarMenu>
-            <Waypoints />
-            {/* Like post */}
-            <Button
-              variant="ghost"
-              onClick={handleLike}
-              className={`flex items-center gap-2 hover:bg-transparent  ${
-                userLiked
-                  ? "text-red-500 hover:text-red-500"
-                  : "hover:opacity-70"
-              }`}
-              title="Like"
-            >
-              <Heart
-                className={`!w-6 !h-6  ${userLiked ? "fill-current" : ""}`}
-              />
-              {(post?.likes?.length ?? 0) > 0 && (
-                <span className="text-foreground">
-                  {post?.likes?.length ?? 0}
-                </span>
-              )}
-            </Button>
-            {/* Comment */}
-            <Button
-              variant="ghost"
-              onClick={() => setShowComments(!showComments)}
-              className={`flex items-center gap-2 hover:bg-transparent ${
-                showComments ? "text-primary" : "hover:opacity-70"
-              }`}
-              title={showComments ? "Hide comments" : "Show comments"}
-            >
-              <MessageCircle
-                className={`!w-6 !h-6 ${
-                  showComments ? "fill-background stroke-primary" : ""
+        <div
+          className="absolute bottom-4 p-4 left-1/2 transform -translate-x-1/2 border-t-[1px] border-border bg-[#F2F2F2]/50"
+          style={{ width: "calc(100vw - 64px)" }}
+        >
+          <Menubar className="w-1/3 m-auto flex justify-between px-2.5 py-4 bg-transparent border-none shadow-none">
+            <MenubarMenu>
+              <Waypoints />
+              {/* Like post */}
+              <Button
+                variant="ghost"
+                onClick={handleLike}
+                className={`flex items-center gap-2 hover:bg-transparent  ${
+                  userLiked
+                    ? "text-red-500 hover:text-red-500"
+                    : "hover:opacity-70"
                 }`}
-              />
-              {(post?.comments?.length ?? 0) > 0 && (
-                <span className="text-foreground">
-                  {post?.comments?.length ?? 0}
-                </span>
-              )}
-            </Button>
-            <Send />
-          </MenubarMenu>
-        </Menubar>
+                title="Like"
+              >
+                <Heart
+                  className={`!w-6 !h-6  ${userLiked ? "fill-current" : ""}`}
+                />
+                {(post?.likes?.length ?? 0) > 0 && (
+                  <span className="text-foreground">
+                    {post?.likes?.length ?? 0}
+                  </span>
+                )}
+              </Button>
+              {/* Comment */}
+              <Button
+                variant="ghost"
+                onClick={() => setShowComments(!showComments)}
+                className={`flex items-center gap-2 hover:bg-transparent ${
+                  showComments ? "text-primary" : "hover:opacity-70"
+                }`}
+                title={showComments ? "Hide comments" : "Show comments"}
+              >
+                <MessageCircle
+                  className={`!w-6 !h-6 ${
+                    showComments ? "fill-background stroke-primary" : ""
+                  }`}
+                />
+                {(post?.comments?.length ?? 0) > 0 && (
+                  <span className="text-foreground">
+                    {post?.comments?.length ?? 0}
+                  </span>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                className="hover:bg-transparent"
+                onClick={() => {
+                  // generate current url and copy it to clipboard
+                  const postUrl = `${window.location.origin}/post/${post?.id}`;
+                  navigator.clipboard.writeText(postUrl);
+                  toast.success("Post URL copied to clipboard!");
+                }}
+              >
+                <Send />
+              </Button>
+            </MenubarMenu>
+          </Menubar>
+        </div>
       </div>
     </div>
   );
