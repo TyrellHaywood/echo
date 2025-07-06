@@ -11,13 +11,14 @@ import { useAuth } from "@/components/AuthProvider";
 import { formatDate } from "@/utils/dataTransformer";
 import { supabase } from "@/utils/supabase";
 import {
-  fetchPostById,
   getPostWithInteractions,
   toggleLike,
   addComment,
   checkUserLikedPost,
+  getPostAudioUrl,
 } from "@/utils/postInteractions";
 import type { PostWithInteractions } from "@/utils/postInteractions";
+import { useAudioPlayer, NativeAudioPlayer } from "@/utils/audioService";
 
 // Shadcn components
 import { Menubar, MenubarMenu } from "@/components/ui/menubar";
@@ -26,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { Slider } from "@/components/ui/slider";
 
 // Components
 import Comments from "@/components/post/Comments";
@@ -46,29 +48,39 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 export default function PostPage() {
   const router = useRouter();
-
   const { user } = useAuth();
-
   const params = useParams();
   const id = params?.id as string | undefined;
+
   const [post, setPost] = useState<PostWithInteractions | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(
     null
   );
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const [userLiked, setUserLiked] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [isAddingComment, setIsAddingComment] = useState(false);
+  const [showFallbackPlayer, setShowFallbackPlayer] = useState(false);
 
-  const [playing, setPlaying] = useState(true);
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(() => {
+    // Read from localStorage if available (default to false)
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("audioAutoPlay") === "true";
+    }
+    return false;
+  });
+  const [audioState, audioControls] = useAudioPlayer(audioUrl, {
+    autoPlay: autoPlayEnabled,
+  });
 
   // Fetch post by ID from URL params
   const loadPost = async () => {
     if (!id || typeof id !== "string") return;
+
     try {
       setLoading(true);
       const postData = await getPostWithInteractions(id);
@@ -77,6 +89,12 @@ export default function PostPage() {
         setError("Post not found");
       } else {
         setPost(postData);
+        console.log("Post loaded:", postData);
+
+        // Get the audio URL using our utility function
+        const url = await getPostAudioUrl(postData);
+        setAudioUrl(url);
+        console.log("Audio URL set:", url);
       }
     } catch (err) {
       setError("Failed to load post");
@@ -107,41 +125,82 @@ export default function PostPage() {
     fetchCurrentUserProfile();
   }, [post?.user_id]);
 
-  const checkIfUserLiked = async () => {
-    if (!user || !post) return;
-    try {
-      const liked = await checkUserLikedPost(post.id, user.id);
-      setUserLiked(liked);
-    } catch (err) {
-      console.error("Error checking like status:", err);
-    }
-  };
-
+  // Check if user has liked the post
   useEffect(() => {
+    const checkIfUserLiked = async () => {
+      if (!user || !post) return;
+      try {
+        const liked = await checkUserLikedPost(post.id, user.id);
+        setUserLiked(liked);
+      } catch (err) {
+        console.error("Error checking like status:", err);
+      }
+    };
+
     if (post && user) {
       checkIfUserLiked();
     }
   }, [post, user]);
 
+  // Handle like action
   const handleLike = async () => {
     if (!user || !post) return;
 
     try {
       const result = await toggleLike(post.id, user.id);
       setUserLiked(result.liked);
-
-      // Update post data to reflect new like count
-      await loadPost();
+      await loadPost(); // Refresh post data
     } catch (err) {
       console.error("Error toggling like:", err);
     }
   };
 
+  // Audio controls wrapper functions
   const handlePlayPause = () => {
-    // TODO: Implement audio playback logic
+    if (!audioState.isLoaded) return;
 
-    setPlaying(!playing);
+    if (audioState.isPlaying) {
+      audioControls.pause();
+    } else {
+      audioControls.play();
+    }
   };
+
+  const handleSeek = (value: number[]) => {
+    if (!audioState.isLoaded) return;
+    audioControls.seek(value[0]);
+  };
+
+  // Toggle fallback player when custom player fails
+  const toggleFallbackPlayer = () => {
+    setShowFallbackPlayer(!showFallbackPlayer);
+  };
+
+  const toggleAutoPlay = () => {
+    const newValue = !autoPlayEnabled;
+    setAutoPlayEnabled(newValue);
+
+    // Save preference
+    if (typeof window !== "undefined") {
+      localStorage.setItem("audioAutoPlay", String(newValue));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="w-screen h-screen sm:p-4 flex items-center justify-center">
+        <div>Loading post...</div>
+      </div>
+    );
+  }
+
+  if (error && !post) {
+    return (
+      <div className="w-screen h-screen sm:p-4 flex items-center justify-center">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-screen h-screen sm:p-4">
@@ -158,14 +217,88 @@ export default function PostPage() {
           >
             <X />
           </Button>
-          <Button
-            variant="ghost"
-            onClick={handlePlayPause}
-            className="bg-[#e5e5e5] p-0 bg-transparent hover:bg-transparent backdrop-blur-md flex flex-row text-foreground opacity-75 hover:opacity-100 transition-opacity duration-200 ease-in-out"
-          >
-            {playing ? <Pause /> : <Play />}
-            Playing
-          </Button>
+          <div className="flex flex-col gap-2">
+            {/* Audio error display and retry options */}
+            {audioState.error && (
+              <div className="flex flex-col text-red-500 text-xs bg-red-50/80 p-2 rounded-md">
+                <p>{audioState.error}</p>
+                <div className="flex gap-2 justify-end mt-1">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={audioControls.retry}
+                    className="text-xs text-red-700 px-2 py-0 h-6"
+                  >
+                    Retry
+                  </Button>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={toggleFallbackPlayer}
+                    className="text-xs text-red-700 px-2 py-0 h-6"
+                  >
+                    {showFallbackPlayer
+                      ? "Hide Fallback"
+                      : "Try Fallback Player"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Fallback native audio player */}
+            {showFallbackPlayer && audioUrl && (
+              <div className="my-2">
+                <NativeAudioPlayer url={audioUrl} className="w-full" />
+              </div>
+            )}
+
+            {/* Custom audio player */}
+            {!showFallbackPlayer && (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={handlePlayPause}
+                  disabled={!audioState.isLoaded || !!audioState.error}
+                  className="bg-[#e5e5e5] p-0 bg-transparent hover:bg-transparent backdrop-blur-md flex flex-row items-center gap-2 text-foreground opacity-75 hover:opacity-100 transition-opacity duration-200 ease-in-out"
+                >
+                  {!post?._url ? (
+                    "No audio available"
+                  ) : !audioState.isLoaded && !audioState.error ? (
+                    "Loading audio..."
+                  ) : audioState.isPlaying ? (
+                    <>
+                      <Pause /> Playing
+                    </>
+                  ) : (
+                    <>
+                      <Play /> Paused
+                    </>
+                  )}
+                </Button>
+
+                {/* Audio scrubber */}
+                {audioState.isLoaded && !audioState.error && (
+                  <div className="flex flex-col gap-1">
+                    <Slider
+                      value={[audioState.currentTime]}
+                      max={audioState.duration || 100}
+                      step={0.1}
+                      onValueChange={handleSeek}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>
+                        {audioControls.formatTime(audioState.currentTime)}
+                      </span>
+                      <span>
+                        {audioControls.formatTime(audioState.duration)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         <Separator />
