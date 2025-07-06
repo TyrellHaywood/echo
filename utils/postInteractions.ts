@@ -1,5 +1,6 @@
 import { supabase } from "@/utils/supabase";
 import { Database } from '../types/supabase';
+import { createSignedAudioUrl } from '@/utils/audioService';
 
 type Post = Database['public']['Tables']['posts']['Row'];
 
@@ -268,5 +269,28 @@ export async function toggleCommentLike(commentId: string, userId: string) {
   } catch (error) {
     console.error('Error toggling comment like:', error);
     throw error;
+  }
+}
+
+export async function getPostAudioUrl(post: Post | null | undefined): Promise<string | null> {
+  if (!post || !post._url) {
+    return null;
+  }
+  
+  try {
+    console.log("Getting audio URL for post:", post.title);
+    console.log("Original URL:", post._url);
+    
+    // Check if the URL is a Supabase storage URL
+    if (post._url.includes("supabase.co")) {
+      const signedUrl = await createSignedAudioUrl(post._url, supabase);
+      console.log("Generated URL:", signedUrl);
+      return signedUrl;
+    }
+    
+    return post._url;
+  } catch (err) {
+    console.error("Error getting post audio URL:", err);
+    return post._url; // Return the original URL as fallback
   }
 }

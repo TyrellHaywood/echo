@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import CreatePost from "@/components/post/CreatePost";
 
 // Icons
-import { Waypoints, User } from "lucide-react";
+import { Home, User } from "lucide-react";
 
 export default function Toolbar() {
   const router = useRouter();
@@ -30,7 +30,7 @@ export default function Toolbar() {
             router.push("/");
           }}
         >
-          <Waypoints />
+          <Home />
         </Button>
 
         <CreatePost />
