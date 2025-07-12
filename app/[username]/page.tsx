@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 
 // Custom components
 import Toolbar from "@/components/Toolbar";
+import EditProfile from "@/components/editProfile";
 
 interface ProfilePageProps {
   params: Promise<{
@@ -18,7 +19,7 @@ interface ProfilePageProps {
   }>;
 }
 
-interface Profile {
+export interface Profile {
   id: string | null;
   username: string | null;
   name: string | null;
@@ -89,7 +90,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   return (
     <>
       <Toolbar />
-
+      <div className="absolute top-6 right-6">
+        <EditProfile profile={profile} />
+      </div>
       <div className="flex flex-col items-center justify-center w-4/5 h-screen m-auto">
         {profile?.avatar_url ? (
           <div className="relative w-full max-w-80 aspect-square mb-3">
