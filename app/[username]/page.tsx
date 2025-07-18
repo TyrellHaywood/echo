@@ -8,10 +8,16 @@ import Image from "next/image";
 
 // Shadcn components
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+
+// Icons
+import { Pencil, X, Check, XCircle } from "lucide-react";
 
 // Custom components
 import Toolbar from "@/components/Toolbar";
-import EditProfile from "@/components/editProfile";
 
 interface ProfilePageProps {
   params: Promise<{
@@ -33,7 +39,6 @@ export interface Profile {
 }
 
 export default function ProfilePage({ params }: ProfilePageProps) {
-  // Unwrap params using React.use()
   const { username } = use(params);
 
   // User data
@@ -44,6 +49,12 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     null
   );
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Edit form state
+  const [editedProfile, setEditedProfile] = useState<Profile | null>(null);
+  const [currentInterest, setCurrentInterest] = useState("");
 
   // Fetch the profile being viewed (from URL)
   useEffect(() => {
@@ -58,8 +69,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         console.error("Profile fetch error:", error);
       } else {
         setProfile(data);
-        console.log("Profile data:", data);
-        console.log("Avatar URL:", data?.avatar_url);
+        setEditedProfile(data); // Initialize edited profile
       }
       setLoading(false);
     };
@@ -84,15 +94,144 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     fetchCurrentUserProfile();
   }, [user]);
 
+  // Check if profile has been edited
+  const hasChanges = () => {
+    if (!profile || !editedProfile) return false;
+
+    return (
+      profile.username !== editedProfile.username ||
+      profile.name !== editedProfile.name ||
+      profile.pronouns !== editedProfile.pronouns ||
+      profile.bio !== editedProfile.bio ||
+      JSON.stringify(profile.interests) !==
+        JSON.stringify(editedProfile.interests)
+    );
+  };
+
+  // Handle input changes
+  const handleInputChange = (field: keyof Profile, value: string) => {
+    if (editedProfile) {
+      setEditedProfile({
+        ...editedProfile,
+        [field]: value,
+      });
+    }
+  };
+
+  // Handle interests
+  const addInterest = () => {
+    if (
+      currentInterest.trim() &&
+      editedProfile &&
+      !editedProfile.interests?.includes(currentInterest.trim())
+    ) {
+      setEditedProfile({
+        ...editedProfile,
+        interests: [...(editedProfile.interests || []), currentInterest.trim()],
+      });
+      setCurrentInterest("");
+    }
+  };
+
+  const removeInterest = (interest: string) => {
+    if (editedProfile) {
+      setEditedProfile({
+        ...editedProfile,
+        interests: (editedProfile.interests || []).filter(
+          (i) => i !== interest
+        ),
+      });
+    }
+  };
+
+  // Save changes to Supabase
+  const saveChanges = async () => {
+    if (!editedProfile || !profile?.id) return;
+
+    setIsSaving(true);
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        username: editedProfile.username,
+        name: editedProfile.name,
+        pronouns: editedProfile.pronouns,
+        bio: editedProfile.bio,
+        interests: editedProfile.interests,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile. Please try again.");
+    } else {
+      setProfile(data);
+      setEditedProfile(data);
+      setIsEditing(false);
+      toast.success("Profile updated successfully!");
+    }
+
+    setIsSaving(false);
+  };
+
+  // Cancel editing
+  const cancelEdit = () => {
+    setEditedProfile(profile);
+    setCurrentInterest("");
+    setIsEditing(false);
+  };
+
+  // Start editing
+  const startEdit = () => {
+    setIsEditing(true);
+    setEditedProfile(profile);
+  };
+
   // Useful for implementing user privacy features & permissions
   const isOwnProfile = currentUserProfile?.username === username;
 
   return (
     <>
       <Toolbar />
-      <div className="absolute top-6 right-6">
-        <EditProfile profile={profile} />
-      </div>
+
+      {/* Edit/Save/Cancel buttons - only show for own profile */}
+      {isOwnProfile && (
+        <div className="absolute top-6 right-6 flex gap-2">
+          {!isEditing ? (
+            <Button
+              variant="outline"
+              className="flex flex-row gap-1 bg-background/50 backdrop-blur-md shadow-inner"
+              onClick={startEdit}
+            >
+              <Pencil className="" />
+              Edit
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                className="flex flex-row gap-1 bg-background/50 backdrop-blur-md shadow-inner"
+                onClick={cancelEdit}
+              >
+                <XCircle className="" />
+                Cancel
+              </Button>
+              <Button
+                className="flex flex-row gap-1"
+                disabled={!hasChanges() || isSaving}
+                onClick={saveChanges}
+              >
+                <Check className="" />
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col items-center justify-center w-4/5 h-screen m-auto">
         {profile?.avatar_url ? (
           <div className="relative w-full max-w-80 aspect-square mb-3">
@@ -102,8 +241,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               fill
               sizes="(max-width: 768px) 100vw, 300px"
               className="rounded-md object-cover shadow-xl"
-              onError={(e) => {}}
-              onLoad={() => {}}
             />
           </div>
         ) : (
@@ -111,35 +248,108 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             <span className="">No avatar</span>
           </div>
         )}
+
         {/* Username */}
-        <h1 className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4">
-          {profile?.username}
-        </h1>
+        {isEditing ? (
+          <Input
+            value={editedProfile?.username || ""}
+            onChange={(e) => handleInputChange("username", e.target.value)}
+            className="text-sub-title font-plex-serif text-left w-full max-w-80 mb-2"
+            placeholder="Username"
+          />
+        ) : (
+          <h1 className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4">
+            {profile?.username}
+          </h1>
+        )}
+
         {/* Name & pronouns */}
-        <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mb-1">
-          <span className="text-sub-description font-source-sans">
-            {profile?.name}
-          </span>
-          •
-          <span className="text-sub-description font-source-sans">
-            {profile?.pronouns}
-          </span>
-        </div>
+        {isEditing ? (
+          <div className="flex flex-col gap-2 w-full max-w-80 mb-2">
+            <Input
+              value={editedProfile?.name || ""}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              className="text-sub-description font-source-sans"
+              placeholder="Display Name"
+            />
+            <Input
+              value={editedProfile?.pronouns || ""}
+              onChange={(e) => handleInputChange("pronouns", e.target.value)}
+              className="text-sub-description font-source-sans"
+              placeholder="Pronouns"
+            />
+          </div>
+        ) : (
+          <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mb-1">
+            <span className="text-sub-description font-source-sans">
+              {profile?.name || "Name"}
+            </span>
+            •
+            <span className="text-sub-description font-source-sans">
+              {profile?.pronouns || "Pronouns"}
+            </span>
+          </div>
+        )}
+
         {/* Bio */}
-        <p className="text-description font-source-sans w-full max-w-80 pl-4">
-          {profile?.bio}
-        </p>
+        {isEditing ? (
+          <Textarea
+            value={editedProfile?.bio || ""}
+            onChange={(e) => handleInputChange("bio", e.target.value)}
+            className="font-source-sans w-full max-w-80 mb-2 min-h-[100px]"
+            placeholder="Tell us about yourself..."
+          />
+        ) : (
+          <p className="text-description font-source-sans w-full max-w-80 pl-4">
+            {profile?.bio || "No bio yet"}
+          </p>
+        )}
+
         {/* Interests */}
-        <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mt-2">
-          {profile?.interests?.map((interest, index) => (
-            <Badge
-              key={index}
-              className="bg-background/50 backdrop-blur-md shadow-inner"
-              variant={"outline"}
-            >
-              {interest}
-            </Badge>
-          ))}
+        <div className="w-full max-w-80 mt-2">
+          {isEditing && (
+            <div className="flex gap-2 mb-2">
+              <Input
+                type="text"
+                placeholder="Add interest"
+                value={currentInterest}
+                onChange={(e) => setCurrentInterest(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addInterest();
+                  }
+                }}
+              />
+              <Button type="button" onClick={addInterest} size="sm">
+                Add
+              </Button>
+            </div>
+          )}
+
+          <div className="flex flex-row flex-wrap gap-2 pl-4">
+            {(isEditing ? editedProfile?.interests : profile?.interests)?.map(
+              (interest, index) => (
+                <Badge
+                  key={index}
+                  className="bg-background/50 backdrop-blur-md shadow-inner"
+                  variant={"outline"}
+                >
+                  {interest}
+                  {isEditing && (
+                    <Button
+                      onClick={() => removeInterest(interest)}
+                      size="icon"
+                      variant="ghost"
+                      className="ml-1 py-0 px-1 w-auto h-auto hover:bg-transparent text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="" />
+                    </Button>
+                  )}
+                </Badge>
+              )
+            )}
+          </div>
         </div>
       </div>
     </>

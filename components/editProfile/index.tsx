@@ -100,7 +100,9 @@ export default function EditProfile({ className, profile }: EditProfileProps) {
               Close
             </Button>
           </DialogClose>
-          <Button className="w-fit flex flex-row">Save Changes</Button>
+          <Button className="w-fit flex flex-row" disabled>
+            Save Changes
+          </Button>
         </DialogHeader>
         {/* User info */}
         <div className="flex flex-col items-center justify-center gap-4 w-4/5 h-screen m-auto">
