@@ -3,6 +3,7 @@
 // Dependencies
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import Link from "next/link";
 
 // Utils
 import { formatDate } from "@/utils/dataTransformer";
@@ -19,6 +20,11 @@ import { Profile } from "@/utils/supabase";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 // Icons
 import { Heart, MessageCircle } from "lucide-react";
@@ -82,9 +88,33 @@ const CommentItem = ({
           />
           {/* text */}
           <div className="flex flex-row items-center gap-1">
-            <span className="text-description font-source-sans">
-              {comment.profile?.name || "Anonymous"}
-            </span>
+            <HoverCard>
+              <HoverCardTrigger>
+                <Link
+                  href={`/${comment.profile?.username || ""}`}
+                  className="text-description font-source-sans pointer-events-pointer hover:underline"
+                >
+                  {comment.profile?.name}
+                </Link>
+              </HoverCardTrigger>
+              <HoverCardContent>
+                <div className="mt-3 flex flex-row gap-2 items-center">
+                  <Avatar
+                    src={comment.profile?.avatar_url ?? undefined}
+                    alt={comment.profile?.name || "user_id"}
+                  />
+                  {/* text */}
+                  <div className="flex flex-col">
+                    <span className="text-description font-source-sans">
+                      {comment.profile?.name}
+                    </span>
+                    <span className="text-metadata font-source-sans">
+                      {comment.profile?.bio}
+                    </span>
+                  </div>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
             <span className="text-metadata text-muted-foreground font-source-sans">
               {comment.created_at && formatDate(comment.created_at)}
             </span>
