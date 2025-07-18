@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Database } from "@/types/supabase";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import Link from "next/link";
 
 // Utils
 import { formatDate } from "@/utils/dataTransformer";
@@ -28,6 +29,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 // Components
 import Comments from "@/components/post/Comments";
@@ -316,9 +322,34 @@ export default function PostPage() {
               />
               {/* text */}
               <div className="flex flex-col">
-                <span className="text-description font-source-sans">
-                  {currentUserProfile?.name}
-                </span>
+                {/* hover card */}
+                <HoverCard>
+                  <HoverCardTrigger>
+                    <Link
+                      href={`/${currentUserProfile?.username || ""}`}
+                      className="text-description font-source-sans pointer-events-pointer hover:underline"
+                    >
+                      {currentUserProfile?.name}
+                    </Link>
+                  </HoverCardTrigger>
+                  <HoverCardContent>
+                    <div className="mt-3 flex flex-row gap-2 items-center">
+                      <Avatar
+                        src={currentUserProfile?.avatar_url ?? undefined}
+                        alt={currentUserProfile?.name || "user_id"}
+                      />
+                      {/* text */}
+                      <div className="flex flex-col">
+                        <span className="text-description font-source-sans">
+                          {currentUserProfile?.name}
+                        </span>
+                        <span className="text-metadata font-source-sans">
+                          {currentUserProfile?.bio}
+                        </span>
+                      </div>
+                    </div>
+                  </HoverCardContent>
+                </HoverCard>
                 <span className="text-metadata font-source-sans uppercase">
                   {post?.created_at && formatDate(post.created_at)}
                 </span>
