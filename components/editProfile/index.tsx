@@ -90,7 +90,7 @@ export default function EditProfile({ className, profile }: EditProfileProps) {
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-screen h-screen" closeClassName="hidden">
-        <DialogHeader className="flex items-end">
+        <DialogHeader className="flex flex-row gap-2 py-1.5 space-y-0 justify-end items-center">
           <DialogClose asChild>
             <Button
               variant="outline"
@@ -100,6 +100,7 @@ export default function EditProfile({ className, profile }: EditProfileProps) {
               Close
             </Button>
           </DialogClose>
+          <Button className="w-fit flex flex-row">Save Changes</Button>
         </DialogHeader>
         {/* User info */}
         <div className="flex flex-col items-center justify-center gap-4 w-4/5 h-screen m-auto">
@@ -124,8 +125,8 @@ export default function EditProfile({ className, profile }: EditProfileProps) {
             </div>
           )}
           {/* Username */}
-          <div className="w-full flex-col gap-1 !items-center !justify-center text-sub-description">
-            <span>Username</span>
+          <div className="w-full flex flex-col gap-1 items-center justify-center text-sub-description">
+            <span className="text-left w-[320px]">Username</span>
             <Input
               value={profile?.username ?? ""}
               className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4"
@@ -134,8 +135,8 @@ export default function EditProfile({ className, profile }: EditProfileProps) {
           </div>
 
           {/* Name */}
-          <div className="w-full flex-col gap-1 !items-center !justify-center text-sub-description">
-            <span>Display Name</span>
+          <div className="w-full flex flex-col gap-1 items-center justify-center text-sub-description">
+            <span className="text-left w-[320px]">Display Name</span>
             <Input
               value={profile?.name ?? ""}
               className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4"
@@ -144,8 +145,8 @@ export default function EditProfile({ className, profile }: EditProfileProps) {
           </div>
 
           {/* Pronouns */}
-          <div className="w-full flex-col gap-1 !items-center !justify-center text-sub-description">
-            <span>Pronouns</span>
+          <div className="w-full flex flex-col gap-1 items-center justify-center text-sub-description">
+            <span className="text-left w-[320px]">Pronouns</span>
             <Input
               value={profile?.pronouns ?? ""}
               className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4"
@@ -154,10 +155,14 @@ export default function EditProfile({ className, profile }: EditProfileProps) {
           </div>
 
           {/* Bio */}
-          <Textarea
-            value={profile?.bio ?? ""}
-            className="text-description font-source-sans w-full max-w-80 pl-4"
-          ></Textarea>
+          <div className="w-full flex flex-col gap-1 items-center justify-center text-sub-description">
+            <span className="text-left w-[320px]">Bio</span>
+            <Textarea
+              value={profile?.bio ?? ""}
+              className="font-source-sans w-full max-w-80 pl-4"
+            ></Textarea>
+          </div>
+
           {/* Interests */}
           <div className="space-y-4">
             <div className="flex gap-2">
