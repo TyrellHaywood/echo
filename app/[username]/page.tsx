@@ -207,26 +207,23 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               className="flex flex-row gap-1 bg-background/50 backdrop-blur-md shadow-inner"
               onClick={startEdit}
             >
-              <Pencil className="" />
               Edit
             </Button>
           ) : (
             <>
               <Button
-                variant="outline"
-                className="flex flex-row gap-1 bg-background/50 backdrop-blur-md shadow-inner"
-                onClick={cancelEdit}
-              >
-                <XCircle className="" />
-                Cancel
-              </Button>
-              <Button
                 className="flex flex-row gap-1"
                 disabled={!hasChanges() || isSaving}
                 onClick={saveChanges}
               >
-                <Check className="" />
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? <LoadingSpinner /> : "Save Changes"}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex flex-row gap-1 bg-background/50 backdrop-blur-md shadow-inner"
+                onClick={cancelEdit}
+              >
+                Cancel
               </Button>
             </>
           )}
