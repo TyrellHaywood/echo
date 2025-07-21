@@ -54,7 +54,7 @@ export async function fetchPostById(postId: string): Promise<Post | null> {
       cover_image_url: data.cover_image_url ?? "",
       _url: data._url,
       parent_id: data.parent_id ?? "",
-      child_id: data.child_id ?? "",
+      children_ids: data.children_ids ?? [""],
       user_id: data.user_id ?? null,
       created_at: data.created_at ?? null,
       duration: data.duration ?? null,
@@ -190,6 +190,197 @@ export async function getPostWithInteractions(postId: string): Promise<PostWithI
   }
 }
 
+export async function getPostChildren(postId: string): Promise<PostWithInteractions[]> {
+  try {
+    const { data: posts, error } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        likes(*),
+        comments(*)
+      `)
+      .eq('parent_post_id', postId);
+
+    if (error) {
+      console.error('Error fetching post children:', error);
+      return [];
+    }
+
+    // Map posts to include the 'profiles' property
+    if (!posts) return [];
+    const postsWithProfiles: PostWithInteractions[] = await Promise.all(
+      posts.map(async (post: any) => {
+        let profileData = null;
+        if (post.user_id) {
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", post.user_id)
+            .single();
+          if (!profileError) {
+            profileData = profile;
+          }
+        }
+        return {
+          ...post,
+          likes: post.likes || [],
+          comments: post.comments || [],
+          profiles: profileData
+        };
+      })
+    );
+    return postsWithProfiles;
+  } catch (error) {
+    console.error('Error in getPostChildren:', error);
+    return [];
+  }
+}
+
+// Function to get the full family tree of a post (parents and children)
+export async function getPostFamilyTree(postId: string): Promise<{
+  post: PostWithInteractions | null;
+  parent: PostWithInteractions | null;
+  children: PostWithInteractions[];
+  siblings: PostWithInteractions[];
+}> {
+  try {
+    const post = await getPostWithInteractions(postId);
+    if (!post) {
+      return { post: null, parent: null, children: [], siblings: [] };
+    }
+
+    // Get parent if exists
+    let parent: PostWithInteractions | null = null;
+    if (post.parent_post_id) {
+      parent = await getPostWithInteractions(post.parent_post_id);
+    }
+
+    // Get children
+    const children = await getPostChildren(postId);
+
+    // Get siblings (other children of the same parent)
+    let siblings: PostWithInteractions[] = [];
+    if (post.parent_post_id) {
+      const allSiblings = await getPostChildren(post.parent_post_id);
+      siblings = allSiblings.filter(sibling => sibling.id !== postId);
+    }
+
+    return { post, parent, children, siblings };
+  } catch (error) {
+    console.error('Error in getPostFamilyTree:', error);
+    return { post: null, parent: null, children: [], siblings: [] };
+  }
+}
+
+// Function to update parent's children_ids when a new remix is created
+export async function addChildToParent(parentId: string, childId: string): Promise<boolean> {
+  try {
+    // First get the current parent post
+    const { data: parentPost, error: fetchError } = await supabase
+      .from('posts')
+      .select('children_ids')
+      .eq('id', parentId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching parent post:', fetchError);
+      return false;
+    }
+
+    // Add the new child to the children_ids array
+    const currentChildren = parentPost.children_ids || [];
+    if (!currentChildren.includes(childId)) {
+      const updatedChildren = [...currentChildren, childId];
+
+      const { error: updateError } = await supabase
+        .from('posts')
+        .update({ children_ids: updatedChildren })
+        .eq('id', parentId);
+
+      if (updateError) {
+        console.error('Error updating parent children_ids:', updateError);
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in addChildToParent:', error);
+    return false;
+  }
+}
+
+// Function to remove child from parent's children_ids
+export async function removeChildFromParent(parentId: string, childId: string): Promise<boolean> {
+  try {
+    const { data: parentPost, error: fetchError } = await supabase
+      .from('posts')
+      .select('children_ids')
+      .eq('id', parentId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching parent post:', fetchError);
+      return false;
+    }
+
+    const currentChildren = parentPost.children_ids || [];
+    const updatedChildren = currentChildren.filter(id => id !== childId);
+
+    const { error: updateError } = await supabase
+      .from('posts')
+      .update({ children_ids: updatedChildren })
+      .eq('id', parentId);
+
+    if (updateError) {
+      console.error('Error updating parent children_ids:', updateError);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in removeChildFromParent:', error);
+    return false;
+  }
+}
+
+// Function to check if a post is a remix
+export function isRemixPost(post: PostWithInteractions): boolean {
+  return post.is_remix === true || post.parent_post_id !== null;
+}
+
+// Function to check if a post has children
+export function hasChildren(post: PostWithInteractions): boolean {
+  return post.children_ids !== null && post.children_ids.length > 0;
+}
+
+// Function to get remix chain depth
+export async function getRemixDepth(postId: string): Promise<number> {
+  try {
+    let depth = 0;
+    let currentPostId = postId;
+
+    while (currentPostId) {
+      const { data: post, error } = await supabase
+        .from('posts')
+        .select('parent_post_id')
+        .eq('id', currentPostId)
+        .single();
+
+      if (error || !post.parent_post_id) {
+        break;
+      }
+
+      depth++;
+      currentPostId = post.parent_post_id;
+    }
+
+    return depth;
+  } catch (error) {
+    console.error('Error calculating remix depth:', error);
+    return 0;
+  }
+}
 
 export async function checkUserLikedPost(postId: string, userId: string) {
   try {
