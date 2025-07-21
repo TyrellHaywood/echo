@@ -11,21 +11,29 @@ export interface NodeMetadata {
 export interface GraphNode {
   id: string;
   name: string;
-  metadata: NodeMetadata;
-  coverImageUrl?: string; 
-  audioUrl?: string; 
+  coverImageUrl?: string;
   x?: number;
   y?: number;
   vx?: number;
   vy?: number;
+  metadata: {
+    type: string[];
+    description?: string;
+    createdAt?: string;
+    userId?: string;
+    isRemix?: boolean;
+    parentPostId?: string;
+    childrenIds?: string[];
+  };
 }
+
 
 export interface GraphLink {
   source: string | GraphNode;
   target: string | GraphNode;
-  id: string;
+  value: number;
+  type?: string;
 }
-
 export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
@@ -72,49 +80,72 @@ export async function fetchAllPosts(): Promise<Post[]> {
 }
 
 // Transform posts to MetaGraph format
-export function transformPostsToGraphData(posts: Post[]): GraphData {
-  // Create nodes from posts
-  const nodes: GraphNode[] = posts.map(post => ({
+export function transformPostsToGraphData(posts: any[]): GraphData {
+  // Create nodes
+  const nodes: GraphNode[] = posts.map((post) => ({
     id: post.id,
     name: post.title,
+    coverImageUrl: post.cover_image_url,
     metadata: {
       type: post.types || [],
-      parent: post.parent_id || "",
-      child: Array.isArray(post.children_ids) && post.children_ids.length > 0 ? post.children_ids[0] : "",
+      description: post.description,
+      createdAt: post.created_at,
+      userId: post.user_id,
+      isRemix: post.is_remix || false,
+      parentPostId: post.parent_post_id,
+      childrenIds: post.children_ids || [],
     },
-    coverImageUrl: post.cover_image_url ?? undefined,
-    audioUrl: post._url,
   }));
 
   // Create links based on parent-child relationships
   const links: GraphLink[] = [];
   
-  posts.forEach(post => {
-    // Create link from parent to child
-    if (post.parent_id && posts.find(p => p.id === post.parent_id)) {
-      links.push({
-        source: post.parent_id,
-        target: post.id,
-        id: `${post.parent_id}-${post.id}`,
-      });
+  posts.forEach((post) => {
+    // If this post has a parent, create a link to it
+    if (post.parent_post_id) {
+      const parentExists = posts.find(p => p.id === post.parent_post_id);
+      if (parentExists) {
+        links.push({
+          source: post.parent_post_id,
+          target: post.id,
+          value: 1,
+          type: 'parent-child'
+        });
+      }
     }
 
-    // Create links from current post to each child
-    if (Array.isArray(post.children_ids)) {
-      post.children_ids.forEach(childId => {
-        if (childId && posts.find(p => p.id === childId)) {
-          links.push({
-            source: post.id,
-            target: childId,
-            id: `${post.id}-${childId}`,
-          });
+    // If this post has children, create links to them
+    if (post.children_ids && post.children_ids.length > 0) {
+      post.children_ids.forEach((childId: string) => {
+        const childExists = posts.find(p => p.id === childId);
+        if (childExists) {
+          // Only add if we haven't already added this link from the child's perspective
+          const linkExists = links.find(
+            link => link.source === post.id && link.target === childId
+          );
+          if (!linkExists) {
+            links.push({
+              source: post.id,
+              target: childId,
+              value: 1,
+              type: 'parent-child'
+            });
+          }
         }
       });
     }
   });
 
-  return { nodes, links };
+  // Remove duplicate links (safety check)
+  const uniqueLinks = links.filter((link, index, self) => 
+    index === self.findIndex(l => 
+      l.source === link.source && l.target === link.target
+    )
+  );
+
+  return { nodes, links: uniqueLinks };
 }
+
 
 // Create color mapping for types
 export function createTypeColorMap(types: string[]): Record<string, string> {
