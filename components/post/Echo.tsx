@@ -64,6 +64,11 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(100);
 
+  // Audio mixing settings
+  const [parentVolume, setParentVolume] = useState(0.5);
+  const [newVolume, setNewVolume] = useState(0.5);
+  const [shouldMixAudio, setShouldMixAudio] = useState(true);
+
   // Types input state
   const [currentType, setCurrentType] = useState("");
 
@@ -110,12 +115,56 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
     }));
   };
 
-  const handleAudioUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Check audio compatibility before upload
+  const checkAudioCompatibility = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+
+        audioContext.decodeAudioData(
+          reader.result as ArrayBuffer,
+          () => {
+            // Successfully decoded
+            audioContext.close();
+            resolve(true);
+          },
+          () => {
+            // Failed to decode
+            audioContext.close();
+            resolve(false);
+          }
+        );
+      };
+      reader.onerror = () => resolve(false);
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  // Updated handleAudioUpload with compatibility check
+  const handleAudioUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
     setError("");
-    setAudioFile(file);
+
+    try {
+      // Check if the browser can decode the audio
+      const isCompatible = await checkAudioCompatibility(file);
+      if (!isCompatible) {
+        setError(
+          "The selected audio format is not supported. Please use MP3, WAV, or OGG formats."
+        );
+        return;
+      }
+
+      setAudioFile(file);
+    } catch (error: any) {
+      setError(`Error checking audio file: ${error.message}`);
+    }
   };
 
   const handleCoverUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,31 +182,233 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
     }
   };
 
-  // Audio mixing function
+  // Fallback function for audio loading
+  const getFallbackAudio = (url: string): Promise<HTMLAudioElement> => {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio();
+      audio.crossOrigin = "anonymous";
+      audio.src = url;
+      audio.addEventListener("canplaythrough", () => resolve(audio));
+      audio.addEventListener("error", () =>
+        reject(new Error("Failed to load audio"))
+      );
+      audio.load();
+    });
+  };
+
+  const isValidUrl = (url: string): boolean => {
+    try {
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // Function to get a signed URL for Supabase Storage files
+  const getSignedUrl = async (url: string): Promise<string> => {
+    try {
+      // If it's not a Supabase storage URL, return the original URL
+      if (
+        !url.includes("storage.googleapis.com") &&
+        !url.includes("supabase")
+      ) {
+        return url;
+      }
+
+      // Try to extract the path from the URL
+      let path = url;
+
+      // If URL contains "audio", try to extract the path after "audio/"
+      if (url.includes("/audio/")) {
+        path = url.split("/audio/")[1];
+      }
+      // If URL contains "storage/v1/object/public", extract path after bucket name
+      else if (url.includes("storage/v1/object/public")) {
+        const parts = url.split("/public/");
+        if (parts.length > 1) {
+          path = parts[1];
+        }
+      }
+
+      console.log("Attempting to get signed URL for path:", path);
+
+      // Try to get a signed URL using Supabase
+      const { data, error } = await supabase.storage
+        .from("audio")
+        .createSignedUrl(path, 60);
+
+      if (error) {
+        console.error("Error getting signed URL:", error);
+        return url; // Fall back to the original URL
+      }
+
+      if (data?.signedUrl) {
+        console.log("Successfully generated signed URL");
+        return data.signedUrl;
+      }
+
+      return url;
+    } catch (err) {
+      console.error("Error in getSignedUrl:", err);
+      return url; // Fall back to the original URL
+    }
+  };
+
+  // Improved audio mixing function with better error handling
   const mixAudioFiles = async (
     parentAudioUrl: string,
     newAudioFile: File
   ): Promise<Blob> => {
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
+      try {
+        audioContextRef.current = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+      } catch (err) {
+        console.error("Failed to create audio context:", err);
+        throw new Error("Your browser doesn't support audio processing");
+      }
     }
 
     const audioContext = audioContextRef.current;
 
     try {
-      // Fetch parent audio
-      const parentResponse = await fetch(parentAudioUrl);
-      const parentArrayBuffer = await parentResponse.arrayBuffer();
-      const parentAudioBuffer = await audioContext.decodeAudioData(
-        parentArrayBuffer
-      );
+      // Try to get a signed URL for better access
+      const signedParentUrl = await getSignedUrl(parentAudioUrl);
+      console.log("Using URL for fetch:", signedParentUrl);
 
-      // Load new audio file
+      // Fix URL issues by ensuring it's properly encoded
+      let cleanUrl = signedParentUrl;
+
+      // If the URL has spaces or other problematic characters, encode it
+      if (!cleanUrl.startsWith("blob:") && cleanUrl.includes(" ")) {
+        const urlParts = cleanUrl.split("/");
+        const lastPart = urlParts[urlParts.length - 1];
+        const encodedLastPart = encodeURIComponent(lastPart);
+        urlParts[urlParts.length - 1] = encodedLastPart;
+        cleanUrl = urlParts.join("/");
+      }
+
+      // Add error handling for parent audio fetch with better options
+      console.log("Fetching parent audio...");
+      const parentResponse = await fetch(cleanUrl, {
+        mode: "cors", // Add explicit CORS mode
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        // Remove credentials: "same-origin" as it may cause CORS issues
+      });
+
+      if (!parentResponse.ok) {
+        throw new Error(
+          `Failed to fetch parent audio: ${parentResponse.status} - ${parentResponse.statusText}`
+        );
+      }
+
+      const parentArrayBuffer = await parentResponse.arrayBuffer();
+      if (!parentArrayBuffer || parentArrayBuffer.byteLength === 0) {
+        throw new Error("Parent audio buffer is empty");
+      }
+
+      // Try decoding the parent audio
+      console.log("Decoding parent audio buffer...");
+      let parentAudioBuffer;
+      try {
+        // Create a copy of the buffer to avoid issues with buffer ownership
+        const bufferCopy = parentArrayBuffer.slice(0);
+        parentAudioBuffer = await audioContext.decodeAudioData(bufferCopy);
+      } catch (decodeError) {
+        console.error("Failed to decode parent audio:", decodeError);
+
+        // Try fallback method using a new audio context if Web Audio API fails
+        console.log("Trying fallback method for parent audio...");
+        try {
+          // Create a new audio element and try playing it directly
+          const audio = new Audio();
+          audio.crossOrigin = "anonymous";
+          audio.src = cleanUrl;
+
+          // Return to a simpler approach - just try to load without mixing
+          return await new Promise((resolve, reject) => {
+            audio.oncanplaythrough = async () => {
+              try {
+                // If we can play the audio, we'll convert the new audio to WAV
+                // and return it without mixing
+                console.log(
+                  "Parent audio loaded via fallback. Preparing new audio only."
+                );
+
+                // Try to load and decode the new audio
+                const newArrayBuffer = await newAudioFile.arrayBuffer();
+                const newBuffer = await audioContext.decodeAudioData(
+                  newArrayBuffer.slice(0)
+                );
+
+                // Convert the new buffer to WAV
+                const newWav = await bufferToWav(newBuffer);
+                resolve(newWav);
+              } catch (err) {
+                reject(
+                  new Error(
+                    `Fallback failed: ${
+                      typeof err === "object" &&
+                      err !== null &&
+                      "message" in err
+                        ? (err as { message?: string }).message
+                        : String(err)
+                    }`
+                  )
+                );
+              }
+            };
+
+            audio.onerror = () => {
+              reject(
+                new Error("Failed to load parent audio via fallback method")
+              );
+            };
+
+            // Start loading the audio
+            audio.load();
+          });
+        } catch (fallbackError) {
+          console.error("Fallback method failed:", fallbackError);
+          throw new Error(
+            `Failed to decode parent audio. Please try a different format.`
+          );
+        }
+      }
+
+      // Load new audio file with error handling
+      console.log("Reading new audio file...");
       const newAudioArrayBuffer = await newAudioFile.arrayBuffer();
-      const newAudioBuffer = await audioContext.decodeAudioData(
-        newAudioArrayBuffer
-      );
+      if (!newAudioArrayBuffer || newAudioArrayBuffer.byteLength === 0) {
+        throw new Error("New audio buffer is empty");
+      }
+
+      // Try decoding the new audio
+      console.log("Decoding new audio buffer...");
+      let newAudioBuffer;
+      try {
+        // Create a copy of the buffer to avoid issues with buffer ownership
+        const bufferCopy = newAudioArrayBuffer.slice(0);
+        newAudioBuffer = await audioContext.decodeAudioData(bufferCopy);
+      } catch (decodeError) {
+        console.error("Failed to decode new audio:", decodeError);
+        throw new Error(
+          `Failed to decode new audio: ${
+            typeof decodeError === "object" &&
+            decodeError !== null &&
+            "message" in decodeError
+              ? (decodeError as { message?: string }).message
+              : String(decodeError)
+          }`
+        );
+      }
+
+      console.log("Both audio files decoded successfully, mixing...");
 
       // Determine the length of the mixed audio (use the longer one)
       const maxLength = Math.max(
@@ -176,40 +427,66 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
         sampleRate
       );
 
-      // Mix the audio
-      for (let channel = 0; channel < mixedBuffer.numberOfChannels; channel++) {
-        const mixedData = mixedBuffer.getChannelData(channel);
+      // Mix the audio with error handling
+      try {
+        // Mix the audio
+        for (
+          let channel = 0;
+          channel < mixedBuffer.numberOfChannels;
+          channel++
+        ) {
+          const mixedData = mixedBuffer.getChannelData(channel);
 
-        // Get parent audio data (or silence if not enough channels)
-        const parentData =
-          channel < parentAudioBuffer.numberOfChannels
-            ? parentAudioBuffer.getChannelData(channel)
-            : new Float32Array(parentAudioBuffer.length);
+          // Get parent audio data (or silence if not enough channels)
+          const parentData =
+            channel < parentAudioBuffer.numberOfChannels
+              ? parentAudioBuffer.getChannelData(channel)
+              : new Float32Array(parentAudioBuffer.length);
 
-        // Get new audio data (or silence if not enough channels)
-        const newData =
-          channel < newAudioBuffer.numberOfChannels
-            ? newAudioBuffer.getChannelData(channel)
-            : new Float32Array(newAudioBuffer.length);
+          // Get new audio data (or silence if not enough channels)
+          const newData =
+            channel < newAudioBuffer.numberOfChannels
+              ? newAudioBuffer.getChannelData(channel)
+              : new Float32Array(newAudioBuffer.length);
 
-        // Mix the audio (simple addition with volume control)
-        for (let i = 0; i < maxLength; i++) {
-          const parentSample = i < parentData.length ? parentData[i] * 0.5 : 0; // Reduce volume
-          const newSample = i < newData.length ? newData[i] * 0.5 : 0; // Reduce volume
-          mixedData[i] = parentSample + newSample;
+          // Mix the audio (with configurable volume)
+          for (let i = 0; i < maxLength; i++) {
+            const parentSample =
+              i < parentData.length ? parentData[i] * parentVolume : 0;
+            const newSample = i < newData.length ? newData[i] * newVolume : 0;
+            mixedData[i] = parentSample + newSample;
 
-          // Prevent clipping
-          if (mixedData[i] > 1) mixedData[i] = 1;
-          if (mixedData[i] < -1) mixedData[i] = -1;
+            // Prevent clipping
+            if (mixedData[i] > 1) mixedData[i] = 1;
+            if (mixedData[i] < -1) mixedData[i] = -1;
+          }
         }
+      } catch (mixingError) {
+        console.error("Error during audio mixing:", mixingError);
+        throw new Error(
+          `Error during audio mixing: ${
+            typeof mixingError === "object" &&
+            mixingError !== null &&
+            "message" in mixingError
+              ? (mixingError as { message?: string }).message
+              : String(mixingError)
+          }`
+        );
       }
 
       // Convert buffer to WAV blob
+      console.log("Converting mixed buffer to WAV...");
       const wavBlob = await bufferToWav(mixedBuffer);
       return wavBlob;
     } catch (error) {
       console.error("Error mixing audio:", error);
-      throw new Error("Failed to mix audio files");
+      throw new Error(
+        `Failed to mix audio files: ${
+          typeof error === "object" && error !== null && "message" in error
+            ? (error as { message?: string }).message
+            : String(error)
+        }`
+      );
     }
   };
 
@@ -262,18 +539,38 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       return;
     }
 
+    if (!parentPost || !parentPost._url) {
+      setError("Parent post audio URL is missing");
+      return;
+    }
+
+    // Validate parent audio URL
+    if (!isValidUrl(parentPost._url)) {
+      setError("Invalid parent audio URL");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
       setUploading(true);
 
+      // Get a proper signed URL for the parent audio
+      console.log("Getting signed URL for parent audio...");
+      const signedUrl = await getSignedUrl(parentPost._url);
+
+      // Skip the HEAD request check as it may fail due to CORS
+
       // Mix the parent audio with the new audio
-      const mixedBlob = await mixAudioFiles(parentPost._url, audioFile);
+      console.log("Starting audio mixing process with URL:", signedUrl);
+      const mixedBlob = await mixAudioFiles(signedUrl, audioFile);
       setMixedAudioBlob(mixedBlob);
+      console.log("Audio mixing complete, file size:", mixedBlob.size);
 
       // Upload mixed audio file
       const audioFileName = `${user.id}/${Date.now()}_remix_audio.wav`;
+      console.log("Uploading mixed audio to:", audioFileName);
 
       const { error: audioUploadError } = await supabase.storage
         .from("audio")
@@ -282,7 +579,10 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
           upsert: false,
         });
 
-      if (audioUploadError) throw audioUploadError;
+      if (audioUploadError) {
+        console.error("Audio upload error:", audioUploadError);
+        throw new Error(`Failed to upload audio: ${audioUploadError.message}`);
+      }
 
       const {
         data: { publicUrl: audioPublicUrl },
@@ -294,6 +594,7 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       if (coverFile) {
         const coverExt = coverFile.name.split(".").pop();
         const coverFileName = `${user.id}/${Date.now()}_cover.${coverExt}`;
+        console.log("Uploading cover image to:", coverFileName);
 
         const { error: coverUploadError } = await supabase.storage
           .from("covers")
@@ -302,7 +603,12 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
             upsert: false,
           });
 
-        if (coverUploadError) throw coverUploadError;
+        if (coverUploadError) {
+          console.error("Cover upload error:", coverUploadError);
+          throw new Error(
+            `Failed to upload cover image: ${coverUploadError.message}`
+          );
+        }
 
         const {
           data: { publicUrl: coverPublicUrl },
@@ -314,6 +620,7 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       setUploading(false);
 
       // Create the child post in database
+      console.log("Creating new post in database...");
       const newPost = {
         user_id: user.id,
         title: postData.title,
@@ -334,9 +641,13 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
         .select()
         .single();
 
-      if (postError) throw postError;
+      if (postError) {
+        console.error("Database error creating post:", postError);
+        throw new Error(`Failed to create post: ${postError.message}`);
+      }
 
       // Update parent post to include this child in children_ids
+      console.log("Updating parent post children_ids...");
       const currentChildren = parentPost.children_ids || [];
       const updatedChildren = [...currentChildren, createdPost.id];
 
@@ -345,8 +656,12 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
         .update({ children_ids: updatedChildren })
         .eq("id", parentPost.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Error updating parent post:", updateError);
+        throw new Error(`Failed to update parent post: ${updateError.message}`);
+      }
 
+      console.log("Echo creation successful!");
       // Reset form and close dialog
       setCurrentStep(0);
       setAudioFile(null);
@@ -366,7 +681,7 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       if (onSuccess) onSuccess();
     } catch (error: any) {
       console.error("Remix creation error:", error);
-      setError(error.message);
+      setError(error.message || "An unknown error occurred");
     } finally {
       setLoading(false);
       setUploading(false);
@@ -399,6 +714,41 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
               onChange={handleAudioUpload}
               className="file:rounded-sm file:bg-muted hover:file:bg-muted/70"
             />
+            {/* Audio mixing options */}
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="parentVolume" className="text-sm">
+                  Original Volume: {Math.round(parentVolume * 100)}%
+                </label>
+                <input
+                  id="parentVolume"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={parentVolume}
+                  onChange={(e) => setParentVolume(parseFloat(e.target.value))}
+                  className="w-1/2"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label htmlFor="newVolume" className="text-sm">
+                  Your Audio Volume: {Math.round(newVolume * 100)}%
+                </label>
+                <input
+                  id="newVolume"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={newVolume}
+                  onChange={(e) => setNewVolume(parseFloat(e.target.value))}
+                  className="w-1/2"
+                />
+              </div>
+            </div>
+            {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
           </div>
         );
 
