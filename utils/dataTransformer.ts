@@ -56,6 +56,7 @@ export async function fetchAllPosts(): Promise<Post[]> {
       _url: post._url,
       parent_id: post.parent_id ?? "",
       child_id: post.child_id ?? "",
+      children_ids: post.children_ids ?? null,
       user_id: post.user_id ?? null,
       created_at: post.created_at ?? null,
       duration: post.duration ?? null,
@@ -79,7 +80,7 @@ export function transformPostsToGraphData(posts: Post[]): GraphData {
     metadata: {
       type: post.types || [],
       parent: post.parent_id || "",
-      child: post.child_id || "",
+      child: Array.isArray(post.children_ids) && post.children_ids.length > 0 ? post.children_ids[0] : "",
     },
     coverImageUrl: post.cover_image_url ?? undefined,
     audioUrl: post._url,
@@ -98,12 +99,16 @@ export function transformPostsToGraphData(posts: Post[]): GraphData {
       });
     }
 
-    // Create link from current post to child
-    if (post.child_id && posts.find(p => p.id === post.child_id)) {
-      links.push({
-        source: post.id,
-        target: post.child_id,
-        id: `${post.id}-${post.child_id}`,
+    // Create links from current post to each child
+    if (Array.isArray(post.children_ids)) {
+      post.children_ids.forEach(childId => {
+        if (childId && posts.find(p => p.id === childId)) {
+          links.push({
+            source: post.id,
+            target: childId,
+            id: `${post.id}-${childId}`,
+          });
+        }
       });
     }
   });
