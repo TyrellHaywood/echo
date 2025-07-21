@@ -33,10 +33,19 @@ export interface GraphLink {
   target: string | GraphNode;
   value: number;
   type?: string;
+  strength?: number;
 }
+
 export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
+}
+
+export interface RemixFamily {
+  rootPost: any;
+  members: any[];
+  depth: number;
+  totalPosts: number;
 }
 
 // Post type from database
@@ -179,4 +188,144 @@ export function formatDate(dateString: string): string {
   const year = date.getFullYear();
   
   return `${month} ${day}, ${year}`;
+}
+
+// Enhanced function to create more sophisticated graph links
+export function createGraphLinks(posts: any[]): GraphLink[] {
+  const links: GraphLink[] = [];
+  const postMap = new Map(posts.map(post => [post.id, post]));
+
+  posts.forEach((post) => {
+    // Create parent-child relationships
+    if (post.parent_post_id && postMap.has(post.parent_post_id)) {
+      links.push({
+        source: post.parent_post_id,
+        target: post.id,
+        value: 2, // Stronger connection for parent-child
+        type: 'parent-child',
+        strength: 0.8
+      });
+    }
+
+    // Create type-based relationships (weaker connections)
+    if (post.types && post.types.length > 0) {
+      posts.forEach((otherPost) => {
+        if (otherPost.id !== post.id && 
+            otherPost.types && 
+            !hasDirectRelationship(post, otherPost)) {
+          
+          const commonTypes = post.types.filter((type: string) => 
+            otherPost.types.includes(type)
+          );
+          
+          if (commonTypes.length > 0) {
+            // Only create link if we don't already have one
+            const existingLink = links.find(link => 
+              (link.source === post.id && link.target === otherPost.id) ||
+              (link.source === otherPost.id && link.target === post.id)
+            );
+            
+            if (!existingLink) {
+              links.push({
+                source: post.id,
+                target: otherPost.id,
+                value: commonTypes.length * 0.5,
+                type: 'type-similarity',
+                strength: 0.3
+              });
+            }
+          }
+        }
+      });
+    }
+  });
+
+  return links;
+}
+
+// Helper function to check if two posts have a direct relationship
+function hasDirectRelationship(post1: any, post2: any): boolean {
+  return post1.parent_post_id === post2.id || 
+         post2.parent_post_id === post1.id ||
+         (post1.children_ids && post1.children_ids.includes(post2.id)) ||
+         (post2.children_ids && post2.children_ids.includes(post1.id));
+}
+
+// Calculate how deep in the remix chain a post is
+function calculateRemixDepth(post: any, allPosts: any[]): number {
+  let depth = 0;
+  let currentPost = post;
+  const visited = new Set(); // Prevent infinite loops
+
+  while (currentPost.parent_post_id && !visited.has(currentPost.id)) {
+    visited.add(currentPost.id);
+    const parentPost = allPosts.find(p => p.id === currentPost.parent_post_id);
+    if (!parentPost) break;
+    
+    depth++;
+    currentPost = parentPost;
+  }
+
+  return depth;
+}
+
+// Function to get remix families (groups of related posts)
+export function getRemixFamilies(posts: any[]): RemixFamily[] {
+  const families: RemixFamily[] = [];
+  const processedPosts = new Set();
+
+  posts.forEach(post => {
+    if (processedPosts.has(post.id)) return;
+
+    // Find the root post (no parent)
+    let rootPost = post;
+    while (rootPost.parent_post_id) {
+      const parent = posts.find(p => p.id === rootPost.parent_post_id);
+      if (!parent) break;
+      rootPost = parent;
+    }
+
+    // If we've already processed this family, skip
+    if (processedPosts.has(rootPost.id)) return;
+
+    // Collect all descendants
+    const familyMembers = collectDescendants(rootPost, posts);
+    familyMembers.forEach(member => processedPosts.add(member.id));
+
+    if (familyMembers.length > 1) { // Only families with more than one member
+      families.push({
+        rootPost,
+        members: familyMembers,
+        depth: Math.max(...familyMembers.map(m => calculateRemixDepth(m, posts))),
+        totalPosts: familyMembers.length
+      });
+    }
+  });
+
+  return families;
+}
+
+// Helper function to collect all descendants of a post
+function collectDescendants(rootPost: any, allPosts: any[]): any[] {
+  const descendants = [rootPost];
+  const toProcess = [rootPost];
+  const processed = new Set([rootPost.id]);
+
+  while (toProcess.length > 0) {
+    const current = toProcess.shift();
+    if (!current) continue;
+
+    // Find direct children
+    const children = allPosts.filter(post => 
+      post.parent_post_id === current.id && !processed.has(post.id)
+    );
+
+    children.forEach(child => {
+      descendants.push(child);
+      toProcess.push(child);
+      processed.add(child.id);
+    });
+  }
+
+  return descendants;
 }
