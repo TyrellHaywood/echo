@@ -37,6 +37,7 @@ import {
 
 // Components
 import Comments from "@/components/post/Comments";
+import EchoDialog from "@/components/post/Echo";
 
 // Icons
 import {
@@ -386,7 +387,25 @@ export default function PostPage() {
         >
           <Menubar className="w-1/3 m-auto flex justify-between px-2.5 py-4 bg-transparent border-none shadow-none">
             <MenubarMenu>
-              <Waypoints />
+              {/* Echo button */}
+              {post && (
+                <EchoDialog
+                  parentPost={{
+                    id: post.id,
+                    title: post.title,
+                    _url: post._url,
+                    cover_image_url: post.cover_image_url || undefined,
+                    user_id: post.user_id || undefined,
+                    children_ids: post.children_ids || undefined,
+                  }}
+                  onSuccess={() => {
+                    toast.success("Echo created successfully!");
+                    // Reload the post data
+                    loadPost();
+                  }}
+                />
+              )}
+
               {/* Like post */}
               <Button
                 variant="ghost"
@@ -429,7 +448,7 @@ export default function PostPage() {
               </Button>
               <Button
                 variant="ghost"
-                className="hover:bg-transparent"
+                className="hover:bg-transparent hover:opacity-70"
                 onClick={() => {
                   // generate current url and copy it to clipboard
                   const postUrl = `${window.location.origin}/post/${post?.id}`;
@@ -437,7 +456,7 @@ export default function PostPage() {
                   toast.success("Post URL copied to clipboard!");
                 }}
               >
-                <Send />
+                <Send className="!w-6 !h-6" />
               </Button>
             </MenubarMenu>
           </Menubar>
