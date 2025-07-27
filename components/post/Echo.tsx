@@ -476,7 +476,7 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
 
       // Convert buffer to WAV blob
       console.log("Converting mixed buffer to WAV...");
-      const wavBlob = await bufferToWav(mixedBuffer);
+      const wavBlob = await bufferToWav(mixedBuffer, 0.7);
       return wavBlob;
     } catch (error) {
       console.error("Error mixing audio:", error);
@@ -490,12 +490,22 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
     }
   };
 
-  // Helper function to convert AudioBuffer to WAV Blob
-  const bufferToWav = async (buffer: AudioBuffer): Promise<Blob> => {
+  // Helper function to convert AudioBuffer to compressed WAV Blob
+  const bufferToWav = async (
+    buffer: AudioBuffer,
+    quality: number = 0.7
+  ): Promise<Blob> => {
     const length = buffer.length;
-    const numberOfChannels = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
-    const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
+    const numberOfChannels = Math.min(buffer.numberOfChannels, 2); // Limit to stereo
+    const sampleRate = Math.min(buffer.sampleRate, 44100); // Limit sample rate
+
+    // Calculate downsampling ratio
+    const downsampleRatio = buffer.sampleRate / sampleRate;
+    const downsampledLength = Math.floor(length / downsampleRatio);
+
+    const arrayBuffer = new ArrayBuffer(
+      44 + downsampledLength * numberOfChannels * 2
+    );
     const view = new DataView(arrayBuffer);
 
     // WAV header
@@ -506,7 +516,7 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
     };
 
     writeString(0, "RIFF");
-    view.setUint32(4, 36 + length * numberOfChannels * 2, true);
+    view.setUint32(4, 36 + downsampledLength * numberOfChannels * 2, true);
     writeString(8, "WAVE");
     writeString(12, "fmt ");
     view.setUint32(16, 16, true);
@@ -517,15 +527,28 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
     view.setUint16(32, numberOfChannels * 2, true);
     view.setUint16(34, 16, true);
     writeString(36, "data");
-    view.setUint32(40, length * numberOfChannels * 2, true);
+    view.setUint32(40, downsampledLength * numberOfChannels * 2, true);
 
-    // Convert float samples to 16-bit PCM
+    // Convert float samples to 16-bit PCM with downsampling
     let offset = 44;
-    for (let i = 0; i < length; i++) {
+    for (let i = 0; i < downsampledLength; i++) {
+      const sourceIndex = Math.floor(i * downsampleRatio);
       for (let channel = 0; channel < numberOfChannels; channel++) {
-        const sample = buffer.getChannelData(channel)[i];
-        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-        view.setInt16(offset, intSample, true);
+        const channelData = buffer.getChannelData(
+          Math.min(channel, buffer.numberOfChannels - 1)
+        );
+        const sample =
+          sourceIndex < channelData.length ? channelData[sourceIndex] : 0;
+
+        // Apply light compression
+        const compressed = sample * quality;
+        const intSample =
+          compressed < 0 ? compressed * 0x8000 : compressed * 0x7fff;
+        view.setInt16(
+          offset,
+          Math.max(-32768, Math.min(32767, intSample)),
+          true
+        );
         offset += 2;
       }
     }
