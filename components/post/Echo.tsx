@@ -231,8 +231,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
         }
       }
 
-      console.log("Attempting to get signed URL for path:", path);
-
       // Try to get a signed URL using Supabase
       const { data, error } = await supabase.storage
         .from("audio")
@@ -244,7 +242,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       }
 
       if (data?.signedUrl) {
-        console.log("Successfully generated signed URL");
         return data.signedUrl;
       }
 
@@ -275,7 +272,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
     try {
       // Try to get a signed URL for better access
       const signedParentUrl = await getSignedUrl(parentAudioUrl);
-      console.log("Using URL for fetch:", signedParentUrl);
 
       // Fix URL issues by ensuring it's properly encoded
       let cleanUrl = signedParentUrl;
@@ -290,7 +286,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       }
 
       // Add error handling for parent audio fetch with better options
-      console.log("Fetching parent audio...");
       const parentResponse = await fetch(cleanUrl, {
         mode: "cors", // Add explicit CORS mode
         cache: "no-store",
@@ -313,7 +308,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       }
 
       // Try decoding the parent audio
-      console.log("Decoding parent audio buffer...");
       let parentAudioBuffer;
       try {
         // Create a copy of the buffer to avoid issues with buffer ownership
@@ -323,7 +317,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
         console.error("Failed to decode parent audio:", decodeError);
 
         // Try fallback method using a new audio context if Web Audio API fails
-        console.log("Trying fallback method for parent audio...");
         try {
           // Create a new audio element and try playing it directly
           const audio = new Audio();
@@ -336,9 +329,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
               try {
                 // If we can play the audio, we'll convert the new audio to WAV
                 // and return it without mixing
-                console.log(
-                  "Parent audio loaded via fallback. Preparing new audio only."
-                );
 
                 // Try to load and decode the new audio
                 const newArrayBuffer = await newAudioFile.arrayBuffer();
@@ -382,14 +372,12 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       }
 
       // Load new audio file with error handling
-      console.log("Reading new audio file...");
       const newAudioArrayBuffer = await newAudioFile.arrayBuffer();
       if (!newAudioArrayBuffer || newAudioArrayBuffer.byteLength === 0) {
         throw new Error("New audio buffer is empty");
       }
 
       // Try decoding the new audio
-      console.log("Decoding new audio buffer...");
       let newAudioBuffer;
       try {
         // Create a copy of the buffer to avoid issues with buffer ownership
@@ -407,8 +395,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
           }`
         );
       }
-
-      console.log("Both audio files decoded successfully, mixing...");
 
       // Determine the length of the mixed audio (use the longer one)
       const maxLength = Math.max(
@@ -475,7 +461,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       }
 
       // Convert buffer to WAV blob
-      console.log("Converting mixed buffer to WAV...");
       const wavBlob = await bufferToWav(mixedBuffer, 0.7);
       return wavBlob;
     } catch (error) {
@@ -580,20 +565,16 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       setUploading(true);
 
       // Get a proper signed URL for the parent audio
-      console.log("Getting signed URL for parent audio...");
       const signedUrl = await getSignedUrl(parentPost._url);
 
       // Skip the HEAD request check as it may fail due to CORS
 
       // Mix the parent audio with the new audio
-      console.log("Starting audio mixing process with URL:", signedUrl);
       const mixedBlob = await mixAudioFiles(signedUrl, audioFile);
       setMixedAudioBlob(mixedBlob);
-      console.log("Audio mixing complete, file size:", mixedBlob.size);
 
       // Upload mixed audio file
       const audioFileName = `${user.id}/${Date.now()}_remix_audio.wav`;
-      console.log("Uploading mixed audio to:", audioFileName);
 
       const { error: audioUploadError } = await supabase.storage
         .from("audio")
@@ -617,7 +598,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       if (coverFile) {
         const coverExt = coverFile.name.split(".").pop();
         const coverFileName = `${user.id}/${Date.now()}_cover.${coverExt}`;
-        console.log("Uploading cover image to:", coverFileName);
 
         const { error: coverUploadError } = await supabase.storage
           .from("covers")
@@ -643,7 +623,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       setUploading(false);
 
       // Create the child post in database
-      console.log("Creating new post in database...");
       const newPost = {
         user_id: user.id,
         title: postData.title,
@@ -670,7 +649,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
       }
 
       // Update parent post to include this child in children_ids
-      console.log("Updating parent post children_ids...");
       const currentChildren = parentPost.children_ids || [];
       const updatedChildren = [...currentChildren, createdPost.id];
 
@@ -684,7 +662,6 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
         throw new Error(`Failed to update parent post: ${updateError.message}`);
       }
 
-      console.log("Echo creation successful!");
       // Reset form and close dialog
       setCurrentStep(0);
       setAudioFile(null);

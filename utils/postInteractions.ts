@@ -469,13 +469,10 @@ export async function getPostAudioUrl(post: Post | null | undefined): Promise<st
   }
   
   try {
-    console.log("Getting audio URL for post:", post.title);
-    console.log("Original URL:", post._url);
     
     // Check if the URL is a Supabase storage URL
     if (post._url.includes("supabase.co")) {
       const signedUrl = await createSignedAudioUrl(post._url, supabase);
-      console.log("Generated URL:", signedUrl);
       return signedUrl;
     }
     

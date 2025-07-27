@@ -54,7 +54,6 @@ export default function Adjustments({
       const normalizedData = filteredData.map((value) => value / maxValue);
 
       setWaveformData(normalizedData);
-      console.log("Waveform generated successfully");
     } catch (error) {
       console.error("Error generating waveform:", error);
       // Fallback to fake waveform data

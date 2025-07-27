@@ -96,12 +96,10 @@ export default function PostPage() {
         setError("Post not found");
       } else {
         setPost(postData);
-        console.log("Post loaded:", postData);
 
         // Get the audio URL using our utility function
         const url = await getPostAudioUrl(postData);
         setAudioUrl(url);
-        console.log("Audio URL set:", url);
       }
     } catch (err) {
       setError("Failed to load post");
