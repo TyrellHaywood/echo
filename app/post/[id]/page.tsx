@@ -222,94 +222,12 @@ export default function PostPage() {
           >
             <X />
           </Button>
-          <div className="flex flex-col gap-2">
-            {/* Audio error display and retry options */}
-            {audioState.error && (
-              <div className="flex flex-col text-red-500 text-xs bg-red-50/80 p-2 rounded-md">
-                <p>{audioState.error}</p>
-                <div className="flex gap-2 justify-end mt-1">
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={audioControls.retry}
-                    className="text-xs text-red-700 px-2 py-0 h-6"
-                  >
-                    Retry
-                  </Button>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={toggleFallbackPlayer}
-                    className="text-xs text-red-700 px-2 py-0 h-6"
-                  >
-                    {showFallbackPlayer
-                      ? "Hide Fallback"
-                      : "Try Fallback Player"}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Fallback native audio player */}
-            {showFallbackPlayer && audioUrl && (
-              <div className="my-2">
-                <NativeAudioPlayer url={audioUrl} className="w-full" />
-              </div>
-            )}
-
-            {/* Custom audio player */}
-            {!showFallbackPlayer && (
-              <>
-                <Button
-                  variant="ghost"
-                  onClick={handlePlayPause}
-                  disabled={!audioState.isLoaded || !!audioState.error}
-                  className="bg-[#e5e5e5] p-0 bg-transparent hover:bg-transparent backdrop-blur-md flex flex-row items-center gap-2 text-foreground opacity-75 hover:opacity-100 transition-opacity duration-200 ease-in-out"
-                >
-                  {!post?._url ? (
-                    "No audio available"
-                  ) : !audioState.isLoaded && !audioState.error ? (
-                    "Loading audio..."
-                  ) : audioState.isPlaying ? (
-                    <>
-                      <Pause /> Playing
-                    </>
-                  ) : (
-                    <>
-                      <Play /> Paused
-                    </>
-                  )}
-                </Button>
-
-                {/* Audio scrubber */}
-                {audioState.isLoaded && !audioState.error && (
-                  <div className="flex flex-col gap-1">
-                    <Slider
-                      value={[audioState.currentTime]}
-                      max={audioState.duration || 100}
-                      step={0.1}
-                      onValueChange={handleSeek}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>
-                        {audioControls.formatTime(audioState.currentTime)}
-                      </span>
-                      <span>
-                        {audioControls.formatTime(audioState.duration)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
         </div>
 
         <Separator />
 
         {/* content */}
-        <div className="w-full overflow-auto">
+        <div className="w-full overflow-auto h-full">
           <div className="w-full sm:w-1/2 lg:w-1/3 h-full m-auto flex flex-col">
             {/* title */}
             <span className="text-title font-plex-serif">{post?.title}</span>
@@ -377,87 +295,165 @@ export default function PostPage() {
             )}
           </div>
         </div>
+        {/* post menubar interactions */}
+        <Menubar className="absolute bottom-32 left-1/2 transform -translate-x-1/2 w-1/3 m-auto flex justify-between px-3 py-6 rounded-full bg-background/50 backdrop-blur-md shadow-inner">
+          <MenubarMenu>
+            {/* Echo button */}
+            {post && (
+              <EchoDialog
+                parentPost={{
+                  id: post.id,
+                  title: post.title,
+                  _url: post._url,
+                  cover_image_url: post.cover_image_url || undefined,
+                  user_id: post.user_id || undefined,
+                  children_ids: post.children_ids || undefined,
+                }}
+                onSuccess={() => {
+                  toast.success("Echo created successfully!");
+                  // Reload the post data
+                  loadPost();
+                }}
+              />
+            )}
+
+            {/* Like post */}
+            <Button
+              variant="ghost"
+              onClick={handleLike}
+              className={`flex items-center gap-2 hover:bg-transparent  ${
+                userLiked
+                  ? "text-red-500 hover:text-red-500"
+                  : "hover:opacity-70"
+              }`}
+              title="Like"
+            >
+              <Heart
+                className={`!w-6 !h-6  ${userLiked ? "fill-current" : ""}`}
+              />
+              {(post?.likes?.length ?? 0) > 0 && (
+                <span className="text-foreground">
+                  {post?.likes?.length ?? 0}
+                </span>
+              )}
+            </Button>
+            {/* Comment */}
+            <Button
+              variant="ghost"
+              onClick={() => setShowComments(!showComments)}
+              className={`flex items-center gap-2 hover:bg-transparent ${
+                showComments ? "text-primary" : "hover:opacity-70"
+              }`}
+              title={showComments ? "Hide comments" : "Show comments"}
+            >
+              <MessageCircle
+                className={`!w-6 !h-6 ${
+                  showComments ? "fill-background stroke-primary" : ""
+                }`}
+              />
+              {(post?.comments?.length ?? 0) > 0 && (
+                <span className="text-foreground">
+                  {post?.comments?.length ?? 0}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              className="hover:bg-transparent hover:opacity-70"
+              onClick={() => {
+                // generate current url and copy it to clipboard
+                const postUrl = `${window.location.origin}/post/${post?.id}`;
+                navigator.clipboard.writeText(postUrl);
+                toast.success("Post URL copied to clipboard!");
+              }}
+            >
+              <Send className="!w-6 !h-6" />
+            </Button>
+          </MenubarMenu>
+        </Menubar>
 
         {/* menubar */}
         <div
-          className="absolute bottom-4 p-4 left-1/2 transform -translate-x-1/2 border-t-[1px] border-border bg-[#F2F2F2]/50"
+          className="flex flex-col gap-2 absolute bottom-4 left-1/2 transform -translate-x-1/2 pt-2 pb-4 border-t-[1px] border-border bg-[#F2F2F2]/50"
           style={{ width: "calc(100vw - 64px)" }}
         >
-          <Menubar className="w-1/3 m-auto flex justify-between px-2.5 py-4 bg-transparent border-none shadow-none">
-            <MenubarMenu>
-              {/* Echo button */}
-              {post && (
-                <EchoDialog
-                  parentPost={{
-                    id: post.id,
-                    title: post.title,
-                    _url: post._url,
-                    cover_image_url: post.cover_image_url || undefined,
-                    user_id: post.user_id || undefined,
-                    children_ids: post.children_ids || undefined,
-                  }}
-                  onSuccess={() => {
-                    toast.success("Echo created successfully!");
-                    // Reload the post data
-                    loadPost();
-                  }}
-                />
-              )}
+          {/* Audio error display and retry options */}
+          {audioState.error && (
+            <div className="flex flex-col text-red-500 text-xs bg-red-50/80 p-2 rounded-md">
+              <p>{audioState.error}</p>
+              <div className="flex gap-2 justify-end mt-1">
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={audioControls.retry}
+                  className="text-xs text-red-700 px-2 py-0 h-6"
+                >
+                  Retry
+                </Button>
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={toggleFallbackPlayer}
+                  className="text-xs text-red-700 px-2 py-0 h-6"
+                >
+                  {showFallbackPlayer ? "Hide Fallback" : "Try Fallback Player"}
+                </Button>
+              </div>
+            </div>
+          )}
 
-              {/* Like post */}
+          {/* Fallback native audio player */}
+          {showFallbackPlayer && audioUrl && (
+            <div className="my-2">
+              <NativeAudioPlayer url={audioUrl} className="w-full" />
+            </div>
+          )}
+
+          {/* Custom audio player */}
+          {!showFallbackPlayer && (
+            <>
               <Button
-                variant="ghost"
-                onClick={handleLike}
-                className={`flex items-center gap-2 hover:bg-transparent  ${
-                  userLiked
-                    ? "text-red-500 hover:text-red-500"
-                    : "hover:opacity-70"
-                }`}
-                title="Like"
+                variant="outline"
+                size={"icon"}
+                onClick={handlePlayPause}
+                disabled={!audioState.isLoaded || !!audioState.error}
+                className="m-auto bg-[#e5e5e5] p-0 bg-transparent hover:bg-transparent backdrop-blur-md flex flex-row items-center gap-2 text-foreground opacity-75 hover:opacity-100 transition-opacity duration-200 ease-in-out rounded-full"
               >
-                <Heart
-                  className={`!w-6 !h-6  ${userLiked ? "fill-current" : ""}`}
-                />
-                {(post?.likes?.length ?? 0) > 0 && (
-                  <span className="text-foreground">
-                    {post?.likes?.length ?? 0}
-                  </span>
+                {!post?._url ? (
+                  "No audio available"
+                ) : !audioState.isLoaded && !audioState.error ? (
+                  "Loading audio..."
+                ) : audioState.isPlaying ? (
+                  <>
+                    <Pause className="fill-black" />
+                  </>
+                ) : (
+                  <>
+                    <Play className="fill-black" />
+                  </>
                 )}
               </Button>
-              {/* Comment */}
-              <Button
-                variant="ghost"
-                onClick={() => setShowComments(!showComments)}
-                className={`flex items-center gap-2 hover:bg-transparent ${
-                  showComments ? "text-primary" : "hover:opacity-70"
-                }`}
-                title={showComments ? "Hide comments" : "Show comments"}
-              >
-                <MessageCircle
-                  className={`!w-6 !h-6 ${
-                    showComments ? "fill-background stroke-primary" : ""
-                  }`}
-                />
-                {(post?.comments?.length ?? 0) > 0 && (
-                  <span className="text-foreground">
-                    {post?.comments?.length ?? 0}
-                  </span>
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                className="hover:bg-transparent hover:opacity-70"
-                onClick={() => {
-                  // generate current url and copy it to clipboard
-                  const postUrl = `${window.location.origin}/post/${post?.id}`;
-                  navigator.clipboard.writeText(postUrl);
-                  toast.success("Post URL copied to clipboard!");
-                }}
-              >
-                <Send className="!w-6 !h-6" />
-              </Button>
-            </MenubarMenu>
-          </Menubar>
+
+              {/* Audio scrubber */}
+              {audioState.isLoaded && !audioState.error && (
+                <div className="flex flex-col gap-1">
+                  <Slider
+                    value={[audioState.currentTime]}
+                    max={audioState.duration || 100}
+                    step={0.1}
+                    onValueChange={handleSeek}
+                    className="w-1/2 m-auto"
+                  />
+                  <div className="w-1/2 m-auto flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      {audioControls.formatTime(audioState.currentTime)}
+                    </span>
+                    <span>{audioControls.formatTime(audioState.duration)}</span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
