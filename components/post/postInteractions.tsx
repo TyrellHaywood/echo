@@ -2,7 +2,10 @@
 
 // Dependencies
 import { useState } from "react";
+
+// Utils
 import type { PostWithInteractions } from "@/utils/postInteractions";
+import { getPostAudioUrl } from "@/utils/postInteractions";
 
 // Shadcn Components
 import { Menubar, MenubarMenu } from "@/components/ui/menubar";
@@ -10,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 // Icons
-import { Heart, MessageCircle, Send } from "lucide-react";
+import { Heart, MessageCircle, Send, Download } from "lucide-react";
 
 // Components
 import EchoDialog from "@/components/post/Echo";
@@ -99,6 +102,43 @@ export default function PostInteractions({
           }}
         >
           <Send className="!w-6 !h-6" />
+        </Button>
+        <Button
+          variant="ghost"
+          className="hover:bg-transparent hover:opacity-70"
+          onClick={async () => {
+            if (post?._url) {
+              try {
+                const audioUrl = await getPostAudioUrl(post);
+                if (audioUrl) {
+                  // Fetch the file as a blob to force download
+                  const response = await fetch(audioUrl);
+                  if (!response.ok)
+                    throw new Error("Failed to fetch audio file");
+
+                  const blob = await response.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+
+                  const link = document.createElement("a");
+                  link.href = blobUrl;
+                  link.download = `${post.title || "audio"}.mp3`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+
+                  // Clean up the blob URL
+                  URL.revokeObjectURL(blobUrl);
+                } else {
+                }
+              } catch (error) {
+                toast.error("Failed to download audio file");
+              }
+            } else {
+              toast.error("Audio file not available for download");
+            }
+          }}
+        >
+          <Download className="!w-6 !h-6" />
         </Button>
       </MenubarMenu>
     </Menubar>
