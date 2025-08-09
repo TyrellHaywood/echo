@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import Link from "next/link";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Icons
 import { Mail, Smartphone } from "lucide-react";
@@ -132,7 +133,7 @@ export default function SignUp() {
       />
       {error && <div className="text-red-500 text-sm">{error}</div>}
       <Button type="submit" className="w-full" disabled={authLoading}>
-        {authLoading ? "Creating..." : "Sign up"}
+        {authLoading ? <LoadingSpinner /> : "Sign up"}
       </Button>
     </form>
   );
@@ -158,7 +159,7 @@ export default function SignUp() {
             className="w-full"
             disabled={authLoading}
           >
-            {authLoading ? "Sending..." : "Send Phone Verification"}
+            {authLoading ? <LoadingSpinner /> : "Send Phone Verification"}
           </Button>
         </form>
       );
@@ -184,7 +185,7 @@ export default function SignUp() {
             className="w-full"
             disabled={authLoading}
           >
-            {authLoading ? "Verifying..." : "Verify Code"}
+            {authLoading ? <LoadingSpinner /> : "Verify Code"}
           </Button>
         </form>
       );
@@ -202,7 +203,7 @@ export default function SignUp() {
           />
           {error && <div className="text-red-500 text-sm">{error}</div>}
           <Button type="submit" className="w-full" disabled={authLoading}>
-            {authLoading ? "Creating..." : "Sign up"}
+            {authLoading ? <LoadingSpinner /> : "Sign up"}
           </Button>
         </form>
       );

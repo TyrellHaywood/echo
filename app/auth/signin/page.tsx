@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import Link from "next/link";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function SignIn() {
   const { user, signIn, signInWithEmail, loading } = useAuth();
@@ -151,7 +152,7 @@ export default function SignIn() {
 
           {/* Sign-in button */}
           <Button type="submit" className="w-full" disabled={authLoading}>
-            {authLoading ? "Signing in..." : "Sign in"}
+            {authLoading ? <LoadingSpinner /> : "Sign in"}
           </Button>
         </form>
 
