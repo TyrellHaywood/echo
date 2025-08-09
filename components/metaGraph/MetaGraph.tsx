@@ -53,8 +53,6 @@ export default function MetaGraph() {
         setAvailableTypes(types);
         setSelectedTypes(types); // Show all types by default
         setTypeColors(colors);
-
-        console.log(`Loaded ${posts.length} posts, ${types.length} types`);
       } catch (error) {
         console.error("Error loading posts:", error);
       } finally {
@@ -83,9 +81,7 @@ export default function MetaGraph() {
             });
 
             newImageCache[node.id] = img;
-          } catch (error) {
-            console.log(`Failed to load image for node ${node.id}`);
-          }
+          } catch (error) {}
         }
       }
 

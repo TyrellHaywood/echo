@@ -79,7 +79,6 @@ export default function SetupProfile() {
       // Create preview URL
       const previewUrl = URL.createObjectURL(file);
       setAvatarPreview(previewUrl);
-      console.log("Avatar preview created successfully");
     } catch (error: any) {
       setError(error.message);
     }

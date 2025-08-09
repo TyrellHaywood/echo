@@ -80,8 +80,6 @@ export async function createSignedAudioUrl(url: string, supabase: any): Promise<
         const bucket = match[1];
         const path = match[2].split('?')[0]; // Remove any query parameters
         
-        console.log(`Extracted bucket: ${bucket}, path: ${path}`);
-        
         const { data, error } = await supabase.storage
           .from(bucket)
           .createSignedUrl(path, 3600);
@@ -93,7 +91,6 @@ export async function createSignedAudioUrl(url: string, supabase: any): Promise<
         }
         
         if (data?.signedUrl) {
-          console.log("Successfully created signed URL");
           return data.signedUrl;
         }
       }
@@ -173,7 +170,6 @@ export function useAudioPlayer(
     cleanupAudio();
 
     try {
-      console.log(`Initializing audio player with URL: ${url}`);
       
       // Create new audio element with explicit type if available
       const audio = new Audio();
@@ -227,15 +223,12 @@ export function useAudioPlayer(
 
       // Additional events for better user experience
       audio.addEventListener('waiting', () => {
-        console.log('Audio buffering...');
       });
       
       audio.addEventListener('canplaythrough', () => {
-        console.log('Audio can play through without buffering');
       });
 
       audio.addEventListener('loadedmetadata', () => {
-        console.log(`Audio metadata loaded: duration = ${audio.duration}`);
         setState(prev => ({
           ...prev,
           isLoaded: true,
@@ -259,7 +252,6 @@ export function useAudioPlayer(
       });
 
     audio.addEventListener('loadedmetadata', () => {
-        console.log(`Audio metadata loaded: duration = ${audio.duration}`);
         setState(prev => ({
         ...prev,
         isLoaded: true,
