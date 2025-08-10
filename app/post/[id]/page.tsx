@@ -40,6 +40,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Comments from "@/components/post/Comments";
 import EchoDialog from "@/components/post/Echo";
 import PostInteractions from "@/components/post/postInteractions";
+import PostSkeleton from "@/components/post/PostSkeleton";
 
 // Icons
 import {
@@ -194,13 +195,7 @@ export default function PostPage() {
   };
 
   if (loading) {
-    return (
-      <div className="w-screen h-screen sm:p-4 flex items-center justify-center">
-        <div>
-          <LoadingSpinner /> Loading post
-        </div>
-      </div>
-    );
+    return <PostSkeleton />;
   }
 
   if (error && !post) {
