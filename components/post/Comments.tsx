@@ -59,6 +59,7 @@ const CommentItem = ({
   replyTextareaRef,
   handleCommentLike,
   userLikedComments,
+  currentUserProfile,
 }: {
   comment: Comment;
   replyingTo: string | null;
@@ -72,6 +73,7 @@ const CommentItem = ({
   replyTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
   handleCommentLike: (commentId: string) => Promise<void>;
   userLikedComments: Record<string, boolean>;
+  currentUserProfile: Profile | null;
 }) => {
   const isReplying = replyingTo === comment.id;
   const isLiked = userLikedComments[comment.id] || false;
@@ -183,6 +185,7 @@ const CommentItem = ({
                 replyTextareaRef={replyTextareaRef}
                 handleCommentLike={handleCommentLike}
                 userLikedComments={userLikedComments}
+                currentUserProfile={currentUserProfile}
               />
             ))}
           </div>
@@ -193,7 +196,7 @@ const CommentItem = ({
           <div className="mt-2 ml-4">
             <div className="flex gap-3">
               <Avatar
-                src={userProfiles[user?.id || ""]?.avatar_url ?? undefined}
+                src={currentUserProfile?.avatar_url ?? undefined}
                 alt="You"
                 className="w-6 h-6"
               />
@@ -237,6 +240,9 @@ export default function Comments({ postId, post }: CommentsProps) {
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [userProfiles, setUserProfiles] = useState<Record<string, Profile>>({});
+  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(
+    null
+  );
 
   const [userLikedComments, setUserLikedComments] = useState<
     Record<string, boolean>
@@ -254,6 +260,30 @@ export default function Comments({ postId, post }: CommentsProps) {
       }, 0);
     }
   }, [replyingTo]);
+
+  // Fetch current user's profile
+  useEffect(() => {
+    const fetchCurrentUserProfile = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (error) throw error;
+        setCurrentUserProfile(data);
+      } catch (err) {
+        console.error("Error fetching current user profile:", err);
+      }
+    };
+
+    if (user) {
+      fetchCurrentUserProfile();
+    }
+  }, [user]);
 
   // Fetch comments for the post
   const fetchComments = async () => {
@@ -467,7 +497,7 @@ export default function Comments({ postId, post }: CommentsProps) {
       {!replyingTo && (
         <div className="flex gap-3">
           <Avatar
-            src={userProfiles[user?.id || ""]?.avatar_url ?? undefined}
+            src={currentUserProfile?.avatar_url ?? undefined}
             alt="You"
             className="w-8 h-8"
           />
@@ -508,6 +538,7 @@ export default function Comments({ postId, post }: CommentsProps) {
               replyTextareaRef={replyTextareaRef}
               handleCommentLike={handleCommentLike}
               userLikedComments={userLikedComments}
+              currentUserProfile={currentUserProfile}
             />
           ))
         ) : (
