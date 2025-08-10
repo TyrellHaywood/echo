@@ -19,6 +19,7 @@ import { Pencil, X, Check, XCircle } from "lucide-react";
 
 // Custom components
 import Toolbar from "@/components/Toolbar";
+import ProfileSkeleton from "@/components/profile/ProfileSkeleton";
 
 interface ProfilePageProps {
   params: Promise<{
@@ -193,6 +194,10 @@ export default function ProfilePage({ params }: ProfilePageProps) {
 
   // Useful for implementing user privacy features & permissions
   const isOwnProfile = currentUserProfile?.username === username;
+
+  if (loading) {
+    return <ProfileSkeleton />;
+  }
 
   return (
     <>
