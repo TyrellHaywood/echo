@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Custom Components
 import {
@@ -358,7 +359,7 @@ export default function SetupProfile() {
       <div className="w-full flex justify-end md:justify-center">
         {currentStep === setupProfile.length - 1 ? (
           <Button onClick={handleSubmitProfile} disabled={loading || uploading}>
-            {loading || uploading ? "Saving..." : "Complete Setup"}
+            {loading || uploading ? <LoadingSpinner /> : "Complete Setup"}
           </Button>
         ) : (
           <div

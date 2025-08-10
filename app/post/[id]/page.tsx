@@ -34,6 +34,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Components
 import Comments from "@/components/post/Comments";
@@ -195,7 +196,9 @@ export default function PostPage() {
   if (loading) {
     return (
       <div className="w-screen h-screen sm:p-4 flex items-center justify-center">
-        <div>Loading post...</div>
+        <div>
+          <LoadingSpinner /> Loading post
+        </div>
       </div>
     );
   }
@@ -357,7 +360,7 @@ export default function PostPage() {
                 {!post?._url ? (
                   "No audio available"
                 ) : !audioState.isLoaded && !audioState.error ? (
-                  "Loading audio..."
+                  <LoadingSpinner />
                 ) : audioState.isPlaying ? (
                   <>
                     <Pause className="fill-black" />

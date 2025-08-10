@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Custom Components
 import Adjustments from "./Adjustments";
@@ -924,7 +925,7 @@ export default function EchoDialog({ parentPost, onSuccess }: EchoDialogProps) {
               onClick={handleSubmitPost}
               disabled={loading || uploading || !audioFile || !postData.title}
             >
-              {loading || uploading ? "Creating Echo..." : "Create Echo"}
+              {loading || uploading ? <LoadingSpinner /> : "Create Echo"}
             </Button>
           ) : (
             <div

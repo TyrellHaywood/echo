@@ -6,6 +6,8 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+
 import {
   getPostFamilyTree,
   PostWithInteractions,
@@ -140,14 +142,7 @@ export default function PostFamilyTree({
   );
 
   if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="animate-pulse">
-          <div className="h-4 bg-muted rounded w-1/4 mb-2"></div>
-          <div className="h-20 bg-muted rounded"></div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!familyData.post) {

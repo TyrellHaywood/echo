@@ -14,12 +14,19 @@ import {
 } from "@/utils/dataTransformer";
 import { extractTypesFromPosts } from "@/utils/postInteractions";
 
+// UI Components
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import GraphSkeleton from "./GraphSkeleton";
+
 // Dynamically import ForceGraph2D with SSR disabled
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
   loading: () => (
     <div className="w-full h-screen flex items-center justify-center">
-      <div className="text-lg">Loading graph...</div>
+      <div className="text-lg">
+        <LoadingSpinner />
+        Loading graph
+      </div>
     </div>
   ),
 });
@@ -187,11 +194,7 @@ export default function MetaGraph() {
   };
 
   if (loading) {
-    return (
-      <div className="w-full h-screen flex items-center justify-center">
-        <div className="text-lg">Loading posts...</div>
-      </div>
-    );
+    return <GraphSkeleton />;
   }
 
   return (
