@@ -77,7 +77,7 @@ const getOrigin = () => {
     return window.location.origin;
   }
   // Fallback for server-side rendering
-  return process.env.NEXT_PUBLIC_SITE_URL || "3cho.vercel.app";
+  return process.env.NEXT_PUBLIC_SITE_URL || "https://3cho.vercel.app";
 };
 
 export function AuthProvider({ children }: AuthProviderProps) {
