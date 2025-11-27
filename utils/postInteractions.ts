@@ -61,6 +61,7 @@ export async function fetchPostById(postId: string): Promise<Post | null> {
       is_remix: data.is_remix ?? null,
       parent_post_id: data.parent_post_id ?? null,
       updated_at: data.updated_at ?? null,
+      track_count: data.track_count ?? null,
     };
 
   } catch (error) {
