@@ -17,6 +17,7 @@ import { Heart, MessageCircle, Send, Download } from "lucide-react";
 
 // Components
 import EchoDialog from "@/components/post/Echo";
+import MessageAuthorDialog from "@/components/messages/MessageAuthorDialog";
 
 interface PostInteractionsProps {
   post: PostWithInteractions | null;
@@ -35,6 +36,9 @@ export default function PostInteractions({
   showComments,
   setShowComments,
 }: PostInteractionsProps) {
+
+  const [showMessageDialog, setShowMessageDialog] = useState(false);
+
   return (
     <Menubar className="absolute bottom-32 left-1/2 transform -translate-x-1/2 w-1/3 m-auto flex justify-between px-3 py-6 rounded-full bg-background/50 backdrop-blur-md shadow-inner">
       <MenubarMenu>
@@ -93,15 +97,10 @@ export default function PostInteractions({
         </Button>
         <Button
           variant="ghost"
-          className="hover:bg-transparent hover:opacity-70"
-          onClick={() => {
-            // generate current url and copy it to clipboard
-            const postUrl = `${window.location.origin}/post/${post?.id}`;
-            navigator.clipboard.writeText(postUrl);
-            toast.success("Post URL copied to clipboard!");
-          }}
+          className="hover:border hover:border-input"
+          onClick={() => setShowMessageDialog(true)}
         >
-          <Send className="!w-6 !h-6" />
+          <Send />
         </Button>
         <Button
           variant="ghost"
@@ -141,6 +140,15 @@ export default function PostInteractions({
           <Download className="!w-6 !h-6" />
         </Button>
       </MenubarMenu>
+      {/* Message Author Dialog */}
+      {post && (
+        <MessageAuthorDialog
+          isOpen={showMessageDialog}
+          onClose={() => setShowMessageDialog(false)}
+          post={post}
+          author={post.profiles}
+        />
+      )}
     </Menubar>
   );
 }

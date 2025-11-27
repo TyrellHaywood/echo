@@ -80,6 +80,7 @@ export async function fetchAllPosts(): Promise<Post[]> {
       is_remix: post.is_remix ?? null,
       parent_post_id: post.parent_post_id ?? null,
       updated_at: post.updated_at ?? null,
+      track_count: post.track_count ?? null,
     }));
 
   } catch (error) {
