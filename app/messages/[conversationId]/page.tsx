@@ -18,6 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { X, Send } from "lucide-react";
 import { toast } from "sonner";
+import StartProjectDialog from "@/components/messages/StartProjectDialog";
 
 export default function MessageThreadPage() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function MessageThreadPage() {
   const [conversation, setConversation] = useState<ConversationWithParticipants | null>(null);
   const [messageText, setMessageText] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [showProjectDialog, setShowProjectDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -155,7 +157,14 @@ export default function MessageThreadPage() {
             </span>
           </div>
 
-          <div className="w-10" />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowProjectDialog(true)}
+            className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner text-sub-description font-source-sans"
+          >
+            Start Project
+          </Button>
         </div>
 
         <Separator />
@@ -167,66 +176,64 @@ export default function MessageThreadPage() {
                 No messages yet. Start the conversation!
               </div>
             ) : (
-             messages.map((message) => {
+              messages.map((message) => {
                 const isOwnMessage = message.sender_id === user.id;
                 
                 return (
-                    <div
+                  <div
                     key={message.id}
                     className={`flex flex-col gap-1 ${
-                        isOwnMessage ? "items-end" : "items-start"
+                      isOwnMessage ? "items-end" : "items-start"
                     }`}
-                    >
-                    {/* Post preview if message has a post reference */}
+                  >
                     {message.post && (
-                        <div
+                      <div
                         className={`max-w-[70%] mb-1 ${
-                            isOwnMessage ? "self-end" : "self-start"
+                          isOwnMessage ? "self-end" : "self-start"
                         }`}
-                        >
+                      >
                         <div className="p-3 rounded-lg bg-background/50 backdrop-blur-md shadow-inner">
-                            <div className="flex flex-row gap-2 items-center">
+                          <div className="flex flex-row gap-2 items-center">
                             {message.post.cover_image_url && (
-                                <img
+                              <img
                                 src={message.post.cover_image_url}
                                 alt={message.post.title || "Post"}
                                 className="w-12 h-12 rounded object-cover"
-                                />
+                              />
                             )}
                             <div className="flex flex-col flex-1">
-                                <span className="text-sub-description font-plex-serif font-medium line-clamp-1">
+                              <span className="text-sub-description font-plex-serif font-medium line-clamp-1">
                                 {message.post.title}
-                                </span>
-                                <button
+                              </span>
+                              <button
                                 onClick={() => router.push(`/post/${message.post!.id}`)}
                                 className="text-metadata font-source-sans text-primary hover:underline text-left"
-                                >
+                              >
                                 View post
-                                </button>
+                              </button>
                             </div>
-                            </div>
+                          </div>
                         </div>
-                        </div>
+                      </div>
                     )}
 
-                    {/* Message bubble */}
                     <div
-                        className={`max-w-[70%] p-3 rounded-lg ${
+                      className={`max-w-[70%] p-3 rounded-lg ${
                         isOwnMessage
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-background/50 backdrop-blur-md shadow-inner"
-                        }`}
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-background/50 backdrop-blur-md shadow-inner"
+                      }`}
                     >
-                        <p className="text-description font-source-sans whitespace-pre-wrap break-words">
+                      <p className="text-description font-source-sans whitespace-pre-wrap break-words">
                         {message.content}
-                        </p>
+                      </p>
                     </div>
                     <span className="text-metadata font-source-sans text-muted-foreground uppercase px-2">
-                        {message.created_at && formatDate(message.created_at)}
+                      {message.created_at && formatDate(message.created_at)}
                     </span>
-                    </div>
+                  </div>
                 );
-                })
+              })
             )}
             <div ref={messagesEndRef} />
           </div>
@@ -254,6 +261,13 @@ export default function MessageThreadPage() {
           </Button>
         </div>
       </div>
+
+      <StartProjectDialog
+        isOpen={showProjectDialog}
+        onClose={() => setShowProjectDialog(false)}
+        conversation={conversation}
+        currentUserId={user.id}
+      />
     </div>
   );
 }
