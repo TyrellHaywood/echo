@@ -1,5 +1,5 @@
 import { supabase } from "@/utils/supabase";
-import {Database} from "@/types/supabase";
+import { Database } from "@/types/supabase";
 
 type Conversation = Database['public']['Tables']['conversations']['Row'];
 type Message = Database['public']['Tables']['messages']['Row'];
@@ -17,16 +17,11 @@ export type MessageWithSender = Message & {
   post: Database['public']['Tables']['posts']['Row'] | null;
 };
 
-/**
- * Get or create a conversation between two users
- * If conversation exists, returns it. If not, creates a new one.
- */
 export async function getOrCreateConversation(
   userId1: string,
   userId2: string
 ): Promise<{ conversation: Conversation | null; isNew: boolean }> {
   try {
-    // First, check if a conversation already exists between these two users
     const { data: existingConversations, error: searchError } = await supabase
       .from('conversation_participants')
       .select('conversation_id')
@@ -37,24 +32,20 @@ export async function getOrCreateConversation(
       return { conversation: null, isNew: false };
     }
 
-    // Find conversations that have both users
     if (existingConversations && existingConversations.length > 0) {
-    const conversationIds = existingConversations
-      .map(cp => cp.conversation_id)
-      .filter((id): id is string => id !== null);
-    
-    // Count participants per conversation
-    const conversationCounts = conversationIds.reduce((acc: Record<string, number>, id) => {
-      acc[id] = (acc[id] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+      const conversationIds = existingConversations
+        .map(cp => cp.conversation_id)
+        .filter((id): id is string => id !== null);
+      
+      const conversationCounts = conversationIds.reduce((acc: Record<string, number>, id) => {
+        acc[id] = (acc[id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
 
-      // Find conversations with exactly 2 participants (both users)
       const sharedConversationId = Object.entries(conversationCounts)
         .find(([_, count]) => count === 2)?.[0];
 
       if (sharedConversationId) {
-        // Fetch the full conversation
         const { data: conversation, error: convError } = await supabase
           .from('conversations')
           .select('*')
@@ -70,7 +61,6 @@ export async function getOrCreateConversation(
       }
     }
 
-    // No existing conversation found, create a new one
     const { data: newConversation, error: createError } = await supabase
       .from('conversations')
       .insert({})
@@ -82,7 +72,6 @@ export async function getOrCreateConversation(
       return { conversation: null, isNew: false };
     }
 
-    // Add both users as participants
     const { error: participantsError } = await supabase
       .from('conversation_participants')
       .insert([
@@ -92,7 +81,6 @@ export async function getOrCreateConversation(
 
     if (participantsError) {
       console.error('Error adding participants:', participantsError);
-      // Clean up the conversation if we couldn't add participants
       await supabase.from('conversations').delete().eq('id', newConversation.id);
       return { conversation: null, isNew: false };
     }
@@ -104,9 +92,6 @@ export async function getOrCreateConversation(
   }
 }
 
-/**
- * Send a message in a conversation
- */
 export async function sendMessage(
   conversationId: string,
   senderId: string,
@@ -114,7 +99,6 @@ export async function sendMessage(
   postId?: string | null
 ): Promise<MessageWithSender | null> {
   try {
-    // Insert the message
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
@@ -131,53 +115,42 @@ export async function sendMessage(
       return null;
     }
 
-    // Update conversation's last_message_at
     await supabase
       .from('conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
 
-    // Fetch the message with sender profile and post
-    const { data: messageWithSender, error: fetchError } = await supabase
-      .from('messages')
-      .select(`
-        *,
-        sender:sender_id (
-          id,
-          username,
-          avatar_url,
-          full_name
-        ),
-        post:post_id (
-          id,
-          title,
-          cover_image_url,
-          _url
-        )
-      `)
-      .eq('id', message.id)
+    const { data: senderProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', senderId)
       .single();
 
-    if (fetchError) {
-      console.error('Error fetching message with sender:', fetchError);
-      return null;
+    let postData = null;
+    if (postId) {
+      const { data } = await supabase
+        .from('posts')
+        .select('id, title, cover_image_url, _url')
+        .eq('id', postId)
+        .single();
+      postData = data;
     }
 
-    return messageWithSender as any as MessageWithSender;;
+    return {
+      ...message,
+      sender: senderProfile || null,
+      post: postData || null
+    } as any as MessageWithSender;
   } catch (error) {
     console.error('Error in sendMessage:', error);
     return null;
   }
 }
 
-/**
- * Get all conversations for a user
- */
 export async function getUserConversations(
   userId: string
 ): Promise<ConversationWithParticipants[]> {
   try {
-    // Get all conversation IDs the user is part of
     const { data: participantData, error: participantError } = await supabase
       .from('conversation_participants')
       .select('conversation_id')
@@ -196,77 +169,75 @@ export async function getUserConversations(
       return [];
     }
 
-    // Fetch conversations with participants and last message
     const { data: conversations, error: conversationsError } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        conversation_participants (
-          *,
-          profiles:user_id (
-            id,
-            username,
-            avatar_url,
-            full_name
-          )
-        ),
-        messages (
-          id,
-          content,
-          created_at,
-          sender_id,
-          post_id
-        )
-      `)
+      .select('*')
       .in('id', conversationIds)
       .order('last_message_at', { ascending: false });
 
-    if (conversationsError) {
+    if (conversationsError || !conversations) {
       console.error('Error fetching conversations:', conversationsError);
       return [];
     }
 
-    // Filter to only get the last message for each conversation
-    const conversationsWithLastMessage = (conversations || []).map(conv => ({
-      ...conv,
-      messages: (conv.messages && conv.messages.length > 0)
-        ? [(conv.messages as Message[]).sort((a: Message, b: Message) => 
-            new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-          )[0]]
-        : []
-    }));
+    const { data: allParticipants } = await supabase
+      .from('conversation_participants')
+      .select('*')
+      .in('conversation_id', conversationIds);
 
-    return conversationsWithLastMessage as any as ConversationWithParticipants[];
+    const allUserIds = [...new Set(allParticipants?.map(p => p.user_id).filter((id): id is string => typeof id === 'string') || [])];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', allUserIds);
+
+    const { data: allMessages } = await supabase
+      .from('messages')
+      .select('id, content, created_at, sender_id, post_id, conversation_id')
+      .in('conversation_id', conversationIds)
+      .order('created_at', { ascending: false });
+
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    const participantsByConv = new Map<string, typeof allParticipants>();
+    const messagesByConv = new Map<string, typeof allMessages>();
+
+    allParticipants?.forEach(p => {
+      if (!p.conversation_id) return;
+      if (!participantsByConv.has(p.conversation_id)) {
+        participantsByConv.set(p.conversation_id, []);
+      }
+      participantsByConv.get(p.conversation_id)?.push(p);
+    });
+
+    allMessages?.forEach(m => {
+      if (!m.conversation_id) return;
+      if (!messagesByConv.has(m.conversation_id)) {
+        messagesByConv.set(m.conversation_id, []);
+      }
+      messagesByConv.get(m.conversation_id)?.push(m);
+    });
+
+    return conversations.map(conv => ({
+      ...conv,
+      conversation_participants: (participantsByConv.get(conv.id) || []).map(p => ({
+        ...p,
+        profiles: p.user_id ? profileMap.get(p.user_id) || null : null
+      })),
+      messages: messagesByConv.get(conv.id)?.[0] ? [messagesByConv.get(conv.id)![0]] : []
+    })) as ConversationWithParticipants[];
   } catch (error) {
     console.error('Error in getUserConversations:', error);
     return [];
   }
 }
 
-/**
- * Get all messages in a conversation
- */
 export async function getConversationMessages(
   conversationId: string
 ): Promise<MessageWithSender[]> {
   try {
     const { data: messages, error } = await supabase
       .from('messages')
-      .select(`
-        *,
-        sender:sender_id (
-          id,
-          username,
-          avatar_url,
-          full_name
-        ),
-        post:post_id (
-          id,
-          title,
-          cover_image_url,
-          _url
-        )
-      `)
+      .select('*')
       .eq('conversation_id', conversationId)
       .eq('is_deleted', false)
       .order('created_at', { ascending: true });
@@ -276,59 +247,90 @@ export async function getConversationMessages(
       return [];
     }
 
-    return (messages || []) as any as MessageWithSender[];
+    if (!messages || messages.length === 0) {
+      return [];
+    }
+
+    const senderIds = [...new Set(messages.map(m => m.sender_id).filter((id): id is string => typeof id === 'string'))];
+    const postIds = [...new Set(messages.map(m => m.post_id).filter((id): id is string => typeof id === 'string'))];
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', senderIds);
+
+    const { data: posts } = await supabase
+      .from('posts')
+      .select('id, title, cover_image_url, _url')
+      .in('id', postIds);
+
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    const postMap = new Map(posts?.map(p => [p.id, p]) || []);
+
+    return messages.map(message => ({
+      ...message,
+      sender: message.sender_id ? profileMap.get(message.sender_id) || null : null,
+      post: message.post_id ? postMap.get(message.post_id) || null : null
+    })) as MessageWithSender[];
   } catch (error) {
     console.error('Error in getConversationMessages:', error);
     return [];
   }
 }
 
-/**
- * Get a single conversation with participants
- */
 export async function getConversation(
   conversationId: string
 ): Promise<ConversationWithParticipants | null> {
   try {
     const { data: conversation, error } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        conversation_participants (
-          *,
-          profiles:user_id (
-            id,
-            username,
-            avatar_url,
-            full_name
-          )
-        ),
-        messages (
-          id,
-          content,
-          created_at,
-          sender_id,
-          post_id
-        )
-      `)
+      .select('*')
       .eq('id', conversationId)
       .single();
 
-    if (error) {
+    if (error || !conversation) {
       console.error('Error fetching conversation:', error);
       return null;
     }
 
-    return conversation as any as ConversationWithParticipants;
+    const { data: participants } = await supabase
+      .from('conversation_participants')
+      .select('*')
+      .eq('conversation_id', conversationId);
+
+    if (!participants) {
+      return null;
+    }
+
+    const userIds = participants.map(p => p.user_id).filter((id): id is string => typeof id === 'string');
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', userIds);
+
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('id, content, created_at, sender_id, post_id')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    return {
+      ...conversation,
+      conversation_participants: participants.map(p => ({
+        ...p,
+        profiles: p.user_id ? profileMap.get(p.user_id) || null : null
+      })),
+      messages: messages || []
+    } as ConversationWithParticipants;
   } catch (error) {
     console.error('Error in getConversation:', error);
     return null;
   }
 }
 
-/**
- * Mark messages as read for a user
- */
 export async function markConversationAsRead(
   conversationId: string,
   userId: string
@@ -352,15 +354,11 @@ export async function markConversationAsRead(
   }
 }
 
-/**
- * Get unread message count for a conversation
- */
 export async function getUnreadCount(
   conversationId: string,
   userId: string
 ): Promise<number> {
   try {
-    // Get user's last_read_at timestamp
     const { data: participant, error: participantError } = await supabase
       .from('conversation_participants')
       .select('last_read_at')
@@ -372,12 +370,11 @@ export async function getUnreadCount(
       return 0;
     }
 
-    // Count messages after last_read_at
     const { count, error: countError } = await supabase
       .from('messages')
       .select('*', { count: 'exact', head: true })
       .eq('conversation_id', conversationId)
-      .neq('sender_id', userId) // Don't count user's own messages
+      .neq('sender_id', userId)
       .gt('created_at', participant.last_read_at || '1970-01-01');
 
     if (countError) {
@@ -392,15 +389,11 @@ export async function getUnreadCount(
   }
 }
 
-/**
- * Delete a message (soft delete)
- */
 export async function deleteMessage(
   messageId: string,
   userId: string
 ): Promise<boolean> {
   try {
-    // Verify the user is the sender
     const { data: message, error: fetchError } = await supabase
       .from('messages')
       .select('sender_id')
@@ -429,9 +422,6 @@ export async function deleteMessage(
   }
 }
 
-/**
- * Get the other participant in a 1:1 conversation
- */
 export function getOtherParticipant(
   conversation: ConversationWithParticipants,
   currentUserId: string

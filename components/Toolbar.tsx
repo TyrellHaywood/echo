@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import CreatePost from "@/components/post/CreatePost";
 
 // Icons
-import { Home, User } from "lucide-react";
+import { Home, User, MessageCircle } from "lucide-react";
 
 export default function Toolbar() {
   const router = useRouter();
@@ -34,6 +34,17 @@ export default function Toolbar() {
         </Button>
 
         <CreatePost />
+
+        {/* View messages */}
+        <Button
+          variant="ghost"
+          className="hover:border hover:border-input"
+          onClick={() => {
+            router.push("/messages");
+          }}
+        >
+          <MessageCircle />
+        </Button>
 
         {/* View profile */}
         <Button
