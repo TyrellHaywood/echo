@@ -6,11 +6,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { getProject, isUserCollaborator } from "@/utils/projectService";
 import type { CollaborativeProject } from "@/utils/projectService";
 import { useMultiTrackPlayer } from "@/hooks/useMultiTrackPlayer";
-import { 
-  useAudioRecorder, 
-  uploadRecording, 
-  createTrackInDatabase 
-} from "@/hooks/useAudioRecorder";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { supabase } from "@/utils/supabase";
 
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -51,6 +48,11 @@ export default function WorkspacePage() {
   const [hasAccess, setHasAccess] = useState(false);
   const [showChat, setShowChat] = useState(false);
 
+  // Track management
+  const [tracks, setTracks] = useState<any[]>([]);
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
+  const [isCreatingTrack, setIsCreatingTrack] = useState(false);
+
   // Multi-track player
   const [playerState, playerControls] = useMultiTrackPlayer(projectId || null);
 
@@ -61,6 +63,7 @@ export default function WorkspacePage() {
   // Time display
   const [bpm] = useState(120);
 
+  // Load project
   useEffect(() => {
     async function loadProject() {
       if (!projectId || !user) return;
@@ -88,6 +91,195 @@ export default function WorkspacePage() {
     loadProject();
   }, [projectId, user]);
 
+  // Load tracks when project loads
+  useEffect(() => {
+    async function loadTracks() {
+      if (!projectId) return;
+
+      const { data, error } = await supabase
+        .from('tracks')
+        .select('*')
+        .eq('post_id', projectId)
+        .order('track_number', { ascending: true });
+
+      if (!error && data) {
+        setTracks(data);
+      }
+    }
+
+    if (project) {
+      loadTracks();
+    }
+  }, [project, projectId]);
+
+    // Add new empty track
+    const handleAddTrack = async () => {
+    if (!user || !projectId || !project) return;
+
+    setIsCreatingTrack(true);
+    try {
+        const nextTrackNumber = (project.track_count || 0) + 1;
+
+        const { data: newTrack, error } = await supabase
+        .from('tracks')
+        .insert({
+            project_id: projectId,
+            user_id: user.id,
+            track_number: nextTrackNumber,
+            title: `Track ${nextTrackNumber}`,
+            audio_url: "",
+            duration: null,
+            volume: 1.0,
+            pan: 0.0,
+            is_muted: false,
+        })
+        .select()
+        .single();
+
+        if (error) {
+        console.error('Error creating track:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        toast.error(`Failed to create track: ${error.message || 'Unknown error'}`);
+        setIsCreatingTrack(false);
+        return;
+        }
+
+        if (!newTrack) {
+        console.error('No track data returned');
+        toast.error('Failed to create track: No data returned');
+        setIsCreatingTrack(false);
+        return;
+        }
+
+        // Update project track count
+        const { error: updateError } = await supabase
+        .from('posts')
+        .update({ track_count: nextTrackNumber })
+        .eq('id', projectId);
+
+        if (updateError) {
+        console.error('Error updating track count:', updateError);
+        }
+
+        // Add to local state
+        setTracks(prev => [...prev, newTrack]);
+        setSelectedTrackId(newTrack.id);
+        
+        // Reload project
+        const updatedProject = await getProject(projectId);
+        setProject(updatedProject);
+
+        toast.success('Track added!');
+    } catch (err) {
+        console.error('Error adding track:', err);
+        toast.error(`Failed to add track: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+        setIsCreatingTrack(false);
+    }
+    };
+  // Record into selected track
+  const handleRecord = async () => {
+    if (!user || !projectId || !selectedTrackId) {
+      toast.error('Please select a track first');
+      return;
+    }
+
+    if (recorderState.isRecording) {
+      // Stop recording and save to selected track
+      setIsUploading(true);
+      try {
+        const blob = await recorderControls.stopRecording();
+        
+        if (!blob) {
+          toast.error("Failed to stop recording");
+          setIsUploading(false);
+          return;
+        }
+
+        const selectedTrack = tracks.find(t => t.id === selectedTrackId);
+        if (!selectedTrack) {
+          toast.error("Selected track not found");
+          setIsUploading(false);
+          return;
+        }
+
+        // Upload the recording
+        const timestamp = Date.now();
+        const filename = `${projectId}/${timestamp}_track_${selectedTrack.track_number}.webm`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('audio')
+          .upload(filename, blob, {
+            contentType: 'audio/webm',
+            cacheControl: '3600',
+          });
+
+        if (uploadError) {
+          console.error('Error uploading audio:', uploadError);
+          toast.error("Failed to upload recording");
+          setIsUploading(false);
+          return;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('audio')
+          .getPublicUrl(uploadData.path);
+
+        // Get duration
+        const audio = new Audio();
+        const audioUrl = URL.createObjectURL(blob);
+        await new Promise<void>((resolve) => {
+          audio.addEventListener('loadedmetadata', () => {
+            resolve();
+          });
+          audio.src = audioUrl;
+        });
+        const duration = Math.floor(audio.duration);
+        URL.revokeObjectURL(audioUrl);
+
+        // Update track with audio URL and duration
+        const { error: updateError } = await supabase
+          .from('tracks')
+          .update({
+            audio_url: urlData.publicUrl,
+            duration: duration,
+          })
+          .eq('id', selectedTrackId);
+
+        if (updateError) {
+          console.error('Error updating track:', updateError);
+          toast.error("Failed to save recording");
+          setIsUploading(false);
+          return;
+        }
+
+        toast.success("Recording saved!");
+        
+        // Reload tracks
+        const { data: updatedTracks } = await supabase
+          .from('tracks')
+          .select('*')
+          .eq('post_id', projectId)
+          .order('track_number', { ascending: true });
+
+        if (updatedTracks) {
+          setTracks(updatedTracks);
+        }
+
+        // Reload multi-track player
+        window.location.reload();
+      } catch (err) {
+        console.error("Error handling recording:", err);
+        toast.error("Recording failed");
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      // Start recording
+      await recorderControls.startRecording();
+    }
+  };
+
   // Transport controls
   const handlePlayPause = () => {
     if (playerState.isPlaying) {
@@ -99,64 +291,6 @@ export default function WorkspacePage() {
 
   const handleStop = () => {
     playerControls.stop();
-  };
-
-  const handleRecord = async () => {
-    if (!user || !projectId) return;
-
-    if (recorderState.isRecording) {
-      // Stop recording and upload
-      setIsUploading(true);
-      try {
-        const blob = await recorderControls.stopRecording();
-        
-        if (!blob) {
-          toast.error("Failed to stop recording");
-          setIsUploading(false);
-          return;
-        }
-
-        const nextTrackNumber = (project?.track_count || 0) + 1;
-
-        const uploadResult = await uploadRecording(
-          blob,
-          projectId,
-          nextTrackNumber,
-          user.id
-        );
-
-        if (!uploadResult) {
-          toast.error("Failed to upload recording");
-          setIsUploading(false);
-          return;
-        }
-
-        const trackId = await createTrackInDatabase(
-          projectId,
-          nextTrackNumber,
-          uploadResult.audioUrl,
-          uploadResult.duration,
-          user.id
-        );
-
-        if (trackId) {
-          toast.success("Track recorded successfully!");
-          // Reload project to show new track
-          const updatedProject = await getProject(projectId);
-          setProject(updatedProject);
-        } else {
-          toast.error("Failed to save track");
-        }
-      } catch (err) {
-        console.error("Error handling recording:", err);
-        toast.error("Recording failed");
-      } finally {
-        setIsUploading(false);
-      }
-    } else {
-      // Start recording
-      await recorderControls.startRecording();
-    }
   };
 
   // Format time helpers
@@ -282,7 +416,7 @@ export default function WorkspacePage() {
                 className={`hover:bg-transparent hover:text-destructive ${
                   recorderState.isRecording ? 'text-destructive' : ''
                 }`}
-                disabled={isUploading}
+                disabled={isUploading || !selectedTrackId}
               >
                 {isUploading ? (
                   <LoadingSpinner size={20} />
@@ -364,25 +498,26 @@ export default function WorkspacePage() {
         <div className="flex-1 flex flex-row overflow-hidden">
           {/* Left sidebar - Tracks */}
           <div className="w-48 bg-[#d9c5a8] p-3 flex flex-col gap-2 overflow-y-auto">
-            {/* Head */}
-            <div className="flex flex-row gap-2 justify-between items-center">
-                <div className="text-sub-description font-source-sans font-medium">Tracks</div>
-                    <Button
-                    variant="outline"
-                    size="icon"
-                    className=" backdrop-blur-md mt-auto"
-                    onClick={handleRecord}
-                    disabled={recorderState.isRecording || isUploading}
-                    >
-                    {recorderState.isRecording ? 
-                        `Recording... ${recorderState.recordingTime}s` : 
-                        <Plus />
-                    }
-                </Button> 
+            <div className="flex flex-row justify-between items-center mb-2">
+              <span className="text-sub-description font-source-sans font-medium">
+                Tracks
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-6 w-6 bg-transparent backdrop-blur-md"
+                onClick={handleAddTrack}
+                disabled={isCreatingTrack}
+              >
+                {isCreatingTrack ? (
+                  <LoadingSpinner size={14} />
+                ) : (
+                  <Plus size={14} />
+                )}
+              </Button>
             </div>
-
             
-            {playerState.tracks.size === 0 ? (
+            {tracks.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center text-muted-foreground text-sub-description font-source-sans">
                   No tracks yet
@@ -390,15 +525,20 @@ export default function WorkspacePage() {
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                {Array.from(playerState.tracks.entries()).map(([trackId, trackState]) => (
-                  <div 
-                    key={trackId}
-                    className="p-2 rounded bg-background/30 backdrop-blur-sm"
+                {tracks.map((track) => (
+                  <button
+                    key={track.id}
+                    onClick={() => setSelectedTrackId(track.id)}
+                    className={`p-2 rounded text-left transition-colors ${
+                      selectedTrackId === track.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background/30 backdrop-blur-sm hover:bg-background/50'
+                    }`}
                   >
                     <div className="text-sub-description font-source-sans">
-                      {trackState.isLoaded ? '🎵' : '⏳'} Track {trackId.slice(0, 6)}
+                      {track.audio_url ? '🎵' : '⚪'} {track.title}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -417,9 +557,9 @@ export default function WorkspacePage() {
             </div>
 
             <div className="absolute top-12 bottom-0 left-0 right-0 flex items-center justify-center">
-              {playerState.tracks.size === 0 ? (
+              {tracks.length === 0 ? (
                 <div className="text-center text-gray-500 text-description font-source-sans">
-                  Timeline - No tracks recorded yet
+                  Timeline - No tracks yet
                 </div>
               ) : (
                 <div className="text-center text-gray-500 text-description font-source-sans">
