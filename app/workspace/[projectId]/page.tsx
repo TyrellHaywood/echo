@@ -112,71 +112,72 @@ export default function WorkspacePage() {
     }
   }, [project, projectId]);
 
-    // Add new empty track
-    const handleAddTrack = async () => {
+  // Add new empty track
+  const handleAddTrack = async () => {
     if (!user || !projectId || !project) return;
 
     setIsCreatingTrack(true);
     try {
-        const nextTrackNumber = (project.track_count || 0) + 1;
+      const nextTrackNumber = (project.track_count || 0) + 1;
 
-        const { data: newTrack, error } = await supabase
+      const { data: newTrack, error } = await supabase
         .from('tracks')
         .insert({
-            project_id: projectId,
-            user_id: user.id,
-            track_number: nextTrackNumber,
-            title: `Track ${nextTrackNumber}`,
-            audio_url: "",
-            duration: null,
-            volume: 1.0,
-            pan: 0.0,
-            is_muted: false,
+          post_id: projectId,
+          user_id: user.id,
+          track_number: nextTrackNumber,
+          title: `Track ${nextTrackNumber}`,
+          audio_url: "",
+          duration: null,
+          volume: 1.0,
+          pan: 0.0,
+          is_muted: false,
         })
         .select()
         .single();
 
-        if (error) {
+      if (error) {
         console.error('Error creating track:', error);
         console.error('Error details:', JSON.stringify(error, null, 2));
         toast.error(`Failed to create track: ${error.message || 'Unknown error'}`);
         setIsCreatingTrack(false);
         return;
-        }
+      }
 
-        if (!newTrack) {
+      if (!newTrack) {
         console.error('No track data returned');
         toast.error('Failed to create track: No data returned');
         setIsCreatingTrack(false);
         return;
-        }
+      }
 
-        // Update project track count
-        const { error: updateError } = await supabase
+      // Update project track count
+      const { error: updateError } = await supabase
         .from('posts')
         .update({ track_count: nextTrackNumber })
         .eq('id', projectId);
 
-        if (updateError) {
+      if (updateError) {
         console.error('Error updating track count:', updateError);
-        }
+      }
 
-        // Add to local state
-        setTracks(prev => [...prev, newTrack]);
-        setSelectedTrackId(newTrack.id);
-        
-        // Reload project
-        const updatedProject = await getProject(projectId);
-        setProject(updatedProject);
+      // Add to local state
+      setTracks(prev => [...prev, newTrack]);
+      setSelectedTrackId(newTrack.id);
+      
+      // Reload project
+      const updatedProject = await getProject(projectId);
+      setProject(updatedProject);
 
-        toast.success('Track added!');
+      toast.success('Track added!');
     } catch (err) {
-        console.error('Error adding track:', err);
-        toast.error(`Failed to add track: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      console.error('Error adding track:', err);
+      toast.error(`Failed to add track: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
-        setIsCreatingTrack(false);
+      setIsCreatingTrack(false);
     }
-    };
+  };
+
   // Record into selected track
   const handleRecord = async () => {
     if (!user || !projectId || !selectedTrackId) {
