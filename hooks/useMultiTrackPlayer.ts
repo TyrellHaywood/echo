@@ -29,6 +29,7 @@ interface MultiTrackControls {
   setTrackPan: (trackId: string, pan: number) => void;
   toggleTrackMute: (trackId: string) => void;
   toggleTrackSolo: (trackId: string) => void;
+  reload: () => Promise<void>;
 }
 
 export function useMultiTrackPlayer(
@@ -71,6 +72,15 @@ export function useMultiTrackPlayer(
         return;
       }
 
+      // Filter out tracks without audio URLs
+      const tracksWithAudio = tracks.filter(t => t.audio_url && t.audio_url.trim() !== '');
+      
+      if (tracksWithAudio.length === 0) {
+        console.log('No tracks with audio to load');
+        setState(prev => ({ ...prev, duration: 0, tracks: new Map() }));
+        return;
+      }
+
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
@@ -78,9 +88,7 @@ export function useMultiTrackPlayer(
       const newTracksMap = new Map<string, TrackState>();
       let maxDuration = 0;
 
-      for (const track of tracks) {
-        if (!track.audio_url) continue;
-
+      for (const track of tracksWithAudio) {
         const audio = new Audio();
         audio.crossOrigin = 'anonymous';
         audio.preload = 'auto';
@@ -93,9 +101,18 @@ export function useMultiTrackPlayer(
         };
 
         audio.addEventListener('loadedmetadata', () => {
+          console.log(`Track ${track.id} loaded, duration:`, audio.duration);
           trackState.isLoaded = true;
-          if (audio.duration > maxDuration) {
-            maxDuration = audio.duration;
+          
+          // Handle Infinity duration by using the database duration or a reasonable default
+          let duration = audio.duration;
+          if (!isFinite(duration)) {
+            duration = track.duration || 0;
+            console.log(`Using database duration for track ${track.id}:`, duration);
+          }
+          
+          if (duration > maxDuration) {
+            maxDuration = duration;
             setState(prev => ({ ...prev, duration: maxDuration }));
           }
 
@@ -109,6 +126,10 @@ export function useMultiTrackPlayer(
           trackState.error = 'Failed to load audio';
           newTracksMap.set(track.id, { ...trackState });
           setState(prev => ({ ...prev, tracks: new Map(newTracksMap) }));
+        });
+
+        audio.addEventListener('canplay', () => {
+          console.log(`Track ${track.id} can play`);
         });
 
         const audioContext = audioContextRef.current;
@@ -178,14 +199,22 @@ export function useMultiTrackPlayer(
     play: async () => {
       const allTracks = Array.from(tracksRef.current.values());
       
-      if (allTracks.length === 0 || !allTracks.every(t => t.isLoaded)) {
-        console.warn('Not all tracks are loaded');
+      if (allTracks.length === 0) {
+        console.warn('No tracks to play');
+        return;
+      }
+
+      const loadedTracks = allTracks.filter(t => t.isLoaded && !t.error);
+      
+      if (loadedTracks.length === 0) {
+        console.warn('No loaded tracks available');
+        console.log('Track states:', allTracks.map(t => ({ id: t.id, isLoaded: t.isLoaded, error: t.error })));
         return;
       }
 
       try {
         await Promise.all(
-          allTracks.map(trackState => {
+          loadedTracks.map(trackState => {
             if (trackState.audio) {
               return trackState.audio.play();
             }
@@ -310,6 +339,27 @@ export function useMultiTrackPlayer(
           }
         }
       });
+    },
+
+    reload: async () => {
+      // Clean up existing tracks
+      tracksRef.current.forEach((trackState) => {
+        if (trackState.audio) {
+          trackState.audio.pause();
+          trackState.audio.src = '';
+        }
+      });
+      tracksRef.current.clear();
+      gainNodesRef.current.clear();
+      panNodesRef.current.clear();
+      
+      if (audioContextRef.current) {
+        await audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+
+      // Reload tracks
+      await loadTracks();
     },
   };
 

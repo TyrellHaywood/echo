@@ -287,7 +287,7 @@ export default function WorkspacePage() {
 
         // Reset player to reload the new audio
         // Instead of window.location.reload(), we'll trigger a player reload
-        playerControls.stop();
+        await playerControls.reload();
         
         setIsUploading(false);
       } catch (err) {
