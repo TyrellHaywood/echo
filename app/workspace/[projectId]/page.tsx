@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { getProject, isUserCollaborator } from "@/utils/projectService";
@@ -63,6 +63,11 @@ export default function WorkspacePage() {
 
   // Time display
   const [bpm] = useState(120);
+  const pixelsPerSecond = 50;
+
+  // Scrubbing state
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [isScrubbing, setIsScrubbing] = useState(false);
 
   // Track colors for waveforms
   const trackColors = [
@@ -122,6 +127,40 @@ export default function WorkspacePage() {
       loadTracks();
     }
   }, [project, projectId]);
+
+  // Scrubbing handlers
+  const handleTimelineMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!timelineRef.current || playerState.duration === 0) return;
+    
+    setIsScrubbing(true);
+    const rect = timelineRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const newTime = x / pixelsPerSecond;
+    const clampedTime = Math.max(0, Math.min(newTime, playerState.duration));
+    playerControls.seek(clampedTime);
+  };
+
+  const handleTimelineMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isScrubbing || !timelineRef.current || playerState.duration === 0) return;
+    
+    const rect = timelineRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const newTime = x / pixelsPerSecond;
+    const clampedTime = Math.max(0, Math.min(newTime, playerState.duration));
+    playerControls.seek(clampedTime);
+  };
+
+  const handleTimelineMouseUp = () => {
+    setIsScrubbing(false);
+  };
+
+  useEffect(() => {
+    if (isScrubbing) {
+      const handleGlobalMouseUp = () => setIsScrubbing(false);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+      return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+    }
+  }, [isScrubbing]);
 
   // Add new empty track
   const handleAddTrack = async () => {
@@ -563,23 +602,20 @@ export default function WorkspacePage() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col">
+              <div className="flex flex-col pt-1">
                 {tracks.map((track) => (
-                  <button
+                  <Button
                     key={track.id}
                     onClick={() => {
                       setSelectedTrackId(track.id);
                     }}
-                    className={`h-20 px-3 border-b border-[#c4b29a] flex items-center justify-start text-left transition-colors ${
-                      selectedTrackId === track.id 
-                        ? 'bg-[#c4b29a] font-semibold' 
-                        : 'hover:bg-[#c4b29a]/50'
-                    }`}
+                    className={`h-16  transition-colors bg-transparent ${selectedTrackId === track.id ? 'bg-primary' : '' }`}
+                    variant="default"
                   >
                     <span className="text-sub-description font-source-sans">
                       {track.title}
                     </span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -599,7 +635,26 @@ export default function WorkspacePage() {
             </div>
 
             {/* Track rows with waveforms */}
-            <div className="absolute top-12 bottom-0 left-0 right-0 overflow-y-auto">
+            <div 
+              ref={timelineRef}
+              className="absolute top-12 bottom-0 left-0 right-0 overflow-y-auto cursor-pointer"
+              onMouseDown={handleTimelineMouseDown}
+              onMouseMove={handleTimelineMouseMove}
+              onMouseUp={handleTimelineMouseUp}
+            >
+              {/* Playhead - scrubber / show current position */}
+              {playerState.duration > 0 && (
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-white z-20 pointer-events-none"
+                  style={{
+                    left: `${playerState.currentTime * pixelsPerSecond}px`,
+                    transition: playerState.isPlaying || isScrubbing ? 'none' : 'left 0.1s',
+                  }}
+                >
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-white rounded-full" />
+                </div>
+              )}
+
               {tracks.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center text-gray-500 text-description font-source-sans">
@@ -611,7 +666,7 @@ export default function WorkspacePage() {
                   {tracks.map((track, index) => (
                     <div
                       key={track.id}
-                      className={`h-20 border-b border-[#2a2a2a] px-4 py-2 flex items-center ${
+                      className={`h-full border-b border-[#2a2a2a] flex items-center ${
                         selectedTrackId === track.id ? 'bg-[#4a4a4a]' : ''
                       }`}
                       onClick={() => setSelectedTrackId(track.id)}
@@ -622,7 +677,7 @@ export default function WorkspacePage() {
                           duration={track.duration}
                           trackTitle={track.title || `Track ${track.track_number}`}
                           color={trackColors[index % trackColors.length]}
-                          pixelsPerSecond={50}
+                          pixelsPerSecond={pixelsPerSecond}
                         />
                       ) : (
                         <div className="text-gray-500 text-sub-description font-source-sans italic">
