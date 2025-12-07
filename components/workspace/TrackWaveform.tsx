@@ -9,6 +9,7 @@ interface TrackWaveformProps {
   trackTitle: string;
   color?: string;
   pixelsPerSecond?: number;
+  isMuted?: boolean;
 }
 
 export function TrackWaveform({
@@ -17,6 +18,7 @@ export function TrackWaveform({
   trackTitle,
   color = "#e09145",
   pixelsPerSecond = 50,
+  isMuted = false,
 }: TrackWaveformProps) {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,13 +85,27 @@ export function TrackWaveform({
   // Calculate width based on duration
   const widthPx = duration * pixelsPerSecond;
 
+  // Reduce opacity
+function hexToRgba(hex: string, alpha: number) {
+    let c = hex.replace("#", "");
+    if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    const num = parseInt(c, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+const displayColor = !isMuted ? hexToRgba(color, 0.4) : color;
+const bgColor = !isMuted ? hexToRgba(color, 0.15) : hexToRgba(color, 0.5);
+
   if (isLoading) {
     return (
       <div
         className="h-16 rounded-md flex items-center justify-center"
         style={{
           width: `${widthPx}px`,
-          backgroundColor: `${color}40`, // 25% opacity
+          backgroundColor: bgColor,
         }}
       >
         <LoadingSpinner size={20} className="text-white" />
@@ -103,7 +119,7 @@ export function TrackWaveform({
         className="h-16 rounded-md flex items-center justify-center"
         style={{
           width: `${widthPx}px`,
-          backgroundColor: `${color}40`,
+          backgroundColor: bgColor,
         }}
       >
         <span className="text-xs text-white/70 font-source-sans">
@@ -118,19 +134,18 @@ export function TrackWaveform({
       className="h-16 rounded-md relative overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
       style={{
         width: `${widthPx}px`,
-        backgroundColor: `${color}80`, // 50% opacity background
+        backgroundColor: bgColor,
       }}
     >
       {/* Waveform bars */}
-      <div className="absolute inset-0 flex items-center justify-between px-1">
+      <div className="absolute inset-0 flex items-center justify-between px-1 gap-[2px]">
         {waveformData.map((amplitude, i) => (
           <div
             key={i}
-            className="rounded-sm transition-all"
+            className="rounded-sm transition-all flex-1 max-w-[3px]"
             style={{
-              width: `${100 / waveformData.length}%`,
               height: `${Math.max(amplitude * 100, 4)}%`,
-              backgroundColor: color,
+              backgroundColor: displayColor,
             }}
           />
         ))}

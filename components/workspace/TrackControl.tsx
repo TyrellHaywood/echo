@@ -125,7 +125,7 @@ export function TrackControl({
           className="h-8 w-8"
           onClick={() => onMuteToggle(track.id)}
         >
-          {track.is_muted ? (
+          {!track.is_muted ? (
             <VolumeX size={16} className="text-muted-foreground" />
           ) : (
             <Volume2 size={16} />

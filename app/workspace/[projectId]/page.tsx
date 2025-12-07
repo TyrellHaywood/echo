@@ -551,6 +551,7 @@ export default function WorkspacePage() {
                           trackTitle={track.title || `Track ${track.track_number}`}
                           color={trackColors[index % trackColors.length]}
                           pixelsPerSecond={pixelsPerSecond}
+                          isMuted={track.is_muted}
                         />
                       ) : (
                         <div className="text-gray-500 text-sub-description font-source-sans italic px-4">
