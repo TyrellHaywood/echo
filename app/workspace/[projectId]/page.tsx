@@ -22,6 +22,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
+import { TrackWaveform } from "@/components/workspace/TrackWaveform";
 import { toast } from "sonner";
 
 import { 
@@ -63,6 +64,16 @@ export default function WorkspacePage() {
   // Time display
   const [bpm] = useState(120);
 
+  // Track colors for waveforms
+  const trackColors = [
+    "#e09145", // Orange
+    "#46b1c9", // Blue
+    "#e17878", // Red
+    "#7ba05b", // Green
+    "#9b72b0", // Purple
+    "#d4a259", // Yellow
+  ];
+
   // Load project
   useEffect(() => {
     async function loadProject() {
@@ -90,12 +101,6 @@ export default function WorkspacePage() {
 
     loadProject();
   }, [projectId, user]);
-
-  // Debug media devices
-  useEffect(() => {
-    console.log('navigator.mediaDevices:', navigator.mediaDevices);
-    console.log('getUserMedia available:', !!navigator.mediaDevices?.getUserMedia);
-  }, []);
 
   // Load tracks when project loads
   useEffect(() => {
@@ -185,18 +190,12 @@ export default function WorkspacePage() {
 
   // Record into selected track
   const handleRecord = async () => {
-    console.log('handleRecord called');
-    console.log('selectedTrackId:', selectedTrackId);
-    console.log('recorderState:', recorderState);
-    
     if (!user || !projectId || !selectedTrackId) {
-      console.log('Missing requirements:', { user: !!user, projectId, selectedTrackId });
       toast.error('Please select a track first');
       return;
     }
 
     if (recorderState.isRecording) {
-      console.log('Stopping recording...');
       setIsUploading(true);
       try {
         const blob = await recorderControls.stopRecording();
@@ -237,22 +236,43 @@ export default function WorkspacePage() {
           .from('audio')
           .getPublicUrl(uploadData.path);
 
-        // Get duration
-        const audio = new Audio();
-        const audioUrl = URL.createObjectURL(blob);
-        await new Promise<void>((resolve) => {
-          audio.addEventListener('loadedmetadata', () => {
-            resolve();
+        // Get duration - improved method
+        let duration = 0;
+        try {
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const arrayBuffer = await blob.arrayBuffer();
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          duration = Math.floor(audioBuffer.duration);
+          await audioContext.close();
+          console.log('Audio duration from AudioContext:', duration);
+        } catch (err) {
+          console.error('Error getting duration from AudioContext:', err);
+          // Fallback to Audio element
+          const audio = new Audio();
+          const audioUrl = URL.createObjectURL(blob);
+          await new Promise<void>((resolve) => {
+            audio.addEventListener('loadedmetadata', () => {
+              if (isFinite(audio.duration)) {
+                duration = Math.floor(audio.duration);
+              }
+              resolve();
+            });
+            audio.addEventListener('error', () => {
+              resolve();
+            });
+            audio.src = audioUrl;
           });
-          audio.addEventListener('error', () => {
-            resolve(); // Resolve anyway to avoid hanging
-          });
-          audio.src = audioUrl;
-        });
-        const duration = Math.floor(audio.duration || 0);
-        URL.revokeObjectURL(audioUrl);
+          URL.revokeObjectURL(audioUrl);
+          console.log('Audio duration from Audio element:', duration);
+        }
 
-        console.log('Audio duration:', duration);
+        // If still 0, estimate from blob size (approximate)
+        if (duration === 0) {
+          duration = Math.floor(blob.size / 16000); // Rough estimate: 16KB per second
+          console.log('Estimated duration from blob size:', duration);
+        }
+
+        console.log('Final duration:', duration);
         console.log('Public URL:', urlData.publicUrl);
 
         // Update track with audio URL and duration
@@ -282,11 +302,9 @@ export default function WorkspacePage() {
 
         if (!tracksError && updatedTracks) {
           setTracks(updatedTracks);
-          console.log('Tracks reloaded:', updatedTracks.length);
         }
 
-        // Reset player to reload the new audio
-        // Instead of window.location.reload(), we'll trigger a player reload
+        // Reload player
         await playerControls.reload();
         
         setIsUploading(false);
@@ -296,10 +314,8 @@ export default function WorkspacePage() {
         setIsUploading(false);
       }
     } else {
-      console.log('Starting recording...');
       try {
         await recorderControls.startRecording();
-        console.log('Recording started successfully');
       } catch (err) {
         console.error('Error starting recording:', err);
         toast.error(`Failed to start recording: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -520,8 +536,8 @@ export default function WorkspacePage() {
         {/* Main workspace area */}
         <div className="flex-1 flex flex-row overflow-hidden">
           {/* Left sidebar - Tracks */}
-          <div className="w-48 bg-[#d9c5a8] p-3 flex flex-col gap-2 overflow-y-auto">
-            <div className="flex flex-row justify-between items-center mb-2">
+          <div className="w-48 bg-[#d9c5a8] flex flex-col overflow-y-auto">
+            <div className="flex flex-row justify-between items-center p-3 pb-2">
               <span className="text-sub-description font-source-sans font-medium">
                 Tracks
               </span>
@@ -541,52 +557,80 @@ export default function WorkspacePage() {
             </div>
             
             {tracks.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center p-3">
                 <div className="text-center text-muted-foreground text-sub-description font-source-sans">
                   No tracks yet
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col">
                 {tracks.map((track) => (
-                  <Button
+                  <button
                     key={track.id}
-                    variant={selectedTrackId === track.id ? "default" : "ghost"}
                     onClick={() => {
-                      console.log('Track clicked:', track.id);
                       setSelectedTrackId(track.id);
                     }}
-                    className="justify-start"
+                    className={`h-20 px-3 border-b border-[#c4b29a] flex items-center justify-start text-left transition-colors ${
+                      selectedTrackId === track.id 
+                        ? 'bg-[#c4b29a] font-semibold' 
+                        : 'hover:bg-[#c4b29a]/50'
+                    }`}
                   >
                     <span className="text-sub-description font-source-sans">
                       {track.title}
                     </span>
-                  </Button>
+                  </button>
                 ))}
               </div>
             )}
           </div>
 
           {/* Center - Timeline */}
-          <div className="flex-1 bg-[#3a3a3a] relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-12 bg-[#4a4a4a] border-b border-[#2a2a2a] flex items-center px-4">
+          <div className="flex-1 bg-[#3a3a3a] relative overflow-x-auto overflow-y-hidden">
+            {/* Timeline header with bar numbers */}
+            <div className="sticky top-0 left-0 right-0 h-12 bg-[#4a4a4a] border-b border-[#2a2a2a] flex items-center px-4 z-10">
               <div className="flex-1 flex flex-row text-xs text-gray-400 font-source-sans">
-                {[1, 3, 5, 7, 9, 11, 13, 15, 17, 19].map((num) => (
-                  <div key={num} className="flex-1 text-center">
+                {Array.from({ length: 20 }, (_, i) => i * 2 + 1).map((num) => (
+                  <div key={num} className="flex-1 text-center min-w-[80px]">
                     {num}
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="absolute top-12 bottom-0 left-0 right-0 flex items-center justify-center">
+            {/* Track rows with waveforms */}
+            <div className="absolute top-12 bottom-0 left-0 right-0 overflow-y-auto">
               {tracks.length === 0 ? (
-                <div className="text-center text-gray-500 text-description font-source-sans">
-                  Timeline - No tracks yet
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center text-gray-500 text-description font-source-sans">
+                    No tracks yet. Click + to add a track.
+                  </div>
                 </div>
               ) : (
-                <div className="text-center text-gray-500 text-description font-source-sans">
-                  Track visualization coming soon
+                <div className="flex flex-col">
+                  {tracks.map((track, index) => (
+                    <div
+                      key={track.id}
+                      className={`h-20 border-b border-[#2a2a2a] px-4 py-2 flex items-center ${
+                        selectedTrackId === track.id ? 'bg-[#4a4a4a]' : ''
+                      }`}
+                      onClick={() => setSelectedTrackId(track.id)}
+                    >
+                      {track.audio_url && track.duration ? (
+                        <TrackWaveform
+                          audioUrl={track.audio_url}
+                          duration={track.duration}
+                          trackTitle={track.title || `Track ${track.track_number}`}
+                          color={trackColors[index % trackColors.length]}
+                          pixelsPerSecond={50}
+                        />
+                      ) : (
+                        <div className="text-gray-500 text-sub-description font-source-sans italic">
+                          Empty - Record to add audio
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
