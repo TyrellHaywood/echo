@@ -10,10 +10,7 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { supabase } from "@/utils/supabase";
 
 import { Button } from "@/components/ui/button";
-import { Avatar } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Menubar } from "@/components/ui/menubar";
 import {
   SidebarProvider,
   Sidebar,
@@ -23,19 +20,10 @@ import {
 } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { TrackWaveform } from "@/components/workspace/TrackWaveform";
+import { TrackControl } from "@/components/workspace/TrackControl";
+import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import { toast } from "sonner";
-
-import { 
-  Home, 
-  Play, 
-  Pause, 
-  SkipBack, 
-  Circle,
-  MessageSquare,
-  Music,
-  PanelRight,
-  Plus
-} from "lucide-react";
+import { MessageSquare, Plus } from "lucide-react";
 
 export default function WorkspacePage() {
   const router = useRouter();
@@ -71,12 +59,7 @@ export default function WorkspacePage() {
 
   // Track colors for waveforms
   const trackColors = [
-    "#e09145", // Orange
-    "#46b1c9", // Blue
-    "#e17878", // Red
-    "#7ba05b", // Green
-    "#9b72b0", // Purple
-    "#d4a259", // Yellow
+    "#e09145", "#46b1c9", "#e17878", "#7ba05b", "#9b72b0", "#d4a259",
   ];
 
   // Load project
@@ -86,7 +69,6 @@ export default function WorkspacePage() {
 
       try {
         setIsLoading(true);
-        
         const canAccess = await isUserCollaborator(projectId, user.id);
         setHasAccess(canAccess);
 
@@ -118,8 +100,25 @@ export default function WorkspacePage() {
         .eq('post_id', projectId)
         .order('track_number', { ascending: true });
 
-      if (!error && data) {
-        setTracks(data);
+      if (error) {
+        console.error('Error loading tracks:', error);
+        return;
+      }
+
+      if (data) {
+        // Fetch profiles separately - filter out null user_ids
+        const userIds = [...new Set(data.map(t => t.user_id))].filter((id): id is string => id !== null);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url')
+          .in('id', userIds);
+
+        const tracksWithProfiles = data.map(track => ({
+          ...track,
+          profiles: profiles?.find(p => p.id === track.user_id) || null
+        }));
+
+        setTracks(tracksWithProfiles);
       }
     }
 
@@ -131,7 +130,6 @@ export default function WorkspacePage() {
   // Scrubbing handlers
   const handleTimelineMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!timelineRef.current || playerState.duration === 0) return;
-    
     setIsScrubbing(true);
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -142,7 +140,6 @@ export default function WorkspacePage() {
 
   const handleTimelineMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isScrubbing || !timelineRef.current || playerState.duration === 0) return;
-    
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const newTime = x / pixelsPerSecond;
@@ -150,9 +147,7 @@ export default function WorkspacePage() {
     playerControls.seek(clampedTime);
   };
 
-  const handleTimelineMouseUp = () => {
-    setIsScrubbing(false);
-  };
+  const handleTimelineMouseUp = () => setIsScrubbing(false);
 
   useEffect(() => {
     if (isScrubbing) {
@@ -161,6 +156,44 @@ export default function WorkspacePage() {
       return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
     }
   }, [isScrubbing]);
+
+  // Track control handlers
+  const handleVolumeChange = (trackId: string, volume: number) => {
+    playerControls.setTrackVolume(trackId, volume);
+    setTracks(prev => prev.map(t => t.id === trackId ? { ...t, volume } : t));
+  };
+
+  const handleMuteToggle = (trackId: string) => {
+    playerControls.toggleTrackMute(trackId);
+    setTracks(prev => prev.map(t => t.id === trackId ? { ...t, is_muted: !t.is_muted } : t));
+  };
+
+  const handleSoloToggle = (trackId: string) => {
+    playerControls.toggleTrackSolo(trackId);
+  };
+
+  const handleDeleteTrack = async (trackId: string) => {
+    if (!confirm('Are you sure you want to delete this track?')) return;
+
+    try {
+      const { error } = await supabase.from('tracks').delete().eq('id', trackId);
+      if (error) {
+        toast.error('Failed to delete track');
+        return;
+      }
+
+      setTracks(prev => prev.filter(t => t.id !== trackId));
+      if (selectedTrackId === trackId) setSelectedTrackId(null);
+      toast.success('Track deleted');
+    } catch (err) {
+      console.error('Error deleting track:', err);
+      toast.error('Failed to delete track');
+    }
+  };
+
+  const handleTrackNameUpdate = (trackId: string, newName: string) => {
+    setTracks(prev => prev.map(t => t.id === trackId ? { ...t, title: newName } : t));
+  };
 
   // Add new empty track
   const handleAddTrack = async () => {
@@ -186,42 +219,32 @@ export default function WorkspacePage() {
         .select()
         .single();
 
-      if (error) {
-        console.error('Error creating track:', error);
-        toast.error(`Failed to create track: ${error.message || 'Unknown error'}`);
-        setIsCreatingTrack(false);
-        return;
-      }
-
-      if (!newTrack) {
-        console.error('No track data returned');
-        toast.error('Failed to create track: No data returned');
+      if (error || !newTrack) {
+        toast.error('Failed to create track');
         setIsCreatingTrack(false);
         return;
       }
 
       // Update project track count
-      const { error: updateError } = await supabase
-        .from('posts')
-        .update({ track_count: nextTrackNumber })
-        .eq('id', projectId);
+      await supabase.from('posts').update({ track_count: nextTrackNumber }).eq('id', projectId);
 
-      if (updateError) {
-        console.error('Error updating track count:', updateError);
-      }
+      // Add profile info
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .eq('id', user.id)
+        .single();
 
-      // Add to local state
-      setTracks(prev => [...prev, newTrack]);
+      setTracks(prev => [...prev, { ...newTrack, profiles: profile }]);
       setSelectedTrackId(newTrack.id);
-      
-      // Reload project
+
       const updatedProject = await getProject(projectId);
       setProject(updatedProject);
 
       toast.success('Track added!');
     } catch (err) {
       console.error('Error adding track:', err);
-      toast.error(`Failed to add track: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error('Failed to add track');
     } finally {
       setIsCreatingTrack(false);
     }
@@ -238,7 +261,6 @@ export default function WorkspacePage() {
       setIsUploading(true);
       try {
         const blob = await recorderControls.stopRecording();
-        
         if (!blob) {
           toast.error("Failed to stop recording");
           setIsUploading(false);
@@ -252,7 +274,6 @@ export default function WorkspacePage() {
           return;
         }
 
-        // Upload the recording
         const timestamp = Date.now();
         const filename = `${projectId}/${timestamp}_track_${selectedTrack.track_number}.webm`;
 
@@ -265,17 +286,14 @@ export default function WorkspacePage() {
           });
 
         if (uploadError) {
-          console.error('Error uploading audio:', uploadError);
           toast.error(`Failed to upload recording: ${uploadError.message}`);
           setIsUploading(false);
           return;
         }
 
-        const { data: urlData } = supabase.storage
-          .from('audio')
-          .getPublicUrl(uploadData.path);
+        const { data: urlData } = supabase.storage.from('audio').getPublicUrl(uploadData.path);
 
-        // Get duration - improved method
+        // Get duration
         let duration = 0;
         try {
           const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -283,73 +301,45 @@ export default function WorkspacePage() {
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
           duration = Math.floor(audioBuffer.duration);
           await audioContext.close();
-          console.log('Audio duration from AudioContext:', duration);
         } catch (err) {
-          console.error('Error getting duration from AudioContext:', err);
-          // Fallback to Audio element
-          const audio = new Audio();
-          const audioUrl = URL.createObjectURL(blob);
-          await new Promise<void>((resolve) => {
-            audio.addEventListener('loadedmetadata', () => {
-              if (isFinite(audio.duration)) {
-                duration = Math.floor(audio.duration);
-              }
-              resolve();
-            });
-            audio.addEventListener('error', () => {
-              resolve();
-            });
-            audio.src = audioUrl;
-          });
-          URL.revokeObjectURL(audioUrl);
-          console.log('Audio duration from Audio element:', duration);
+          console.error('Error getting duration:', err);
+          duration = Math.floor(blob.size / 16000);
         }
 
-        // If still 0, estimate from blob size (approximate)
-        if (duration === 0) {
-          duration = Math.floor(blob.size / 16000); // Rough estimate: 16KB per second
-          console.log('Estimated duration from blob size:', duration);
-        }
-
-        console.log('Final duration:', duration);
-        console.log('Public URL:', urlData.publicUrl);
-
-        // Update track with audio URL and duration
-        const { error: updateError } = await supabase
+        await supabase
           .from('tracks')
-          .update({
-            audio_url: urlData.publicUrl,
-            duration: duration,
-          })
+          .update({ audio_url: urlData.publicUrl, duration })
           .eq('id', selectedTrackId);
 
-        if (updateError) {
-          console.error('Error updating track:', updateError);
-          toast.error("Failed to save recording");
-          setIsUploading(false);
-          return;
-        }
-
         toast.success("Recording saved!");
-        
-        // Reload tracks to update UI
-        const { data: updatedTracks, error: tracksError } = await supabase
+
+        // Reload tracks
+        const { data: updatedTracks } = await supabase
           .from('tracks')
           .select('*')
           .eq('post_id', projectId)
-          .order('track_number', { ascending: true });
+          .order('track_number', { ascending: true});
 
-        if (!tracksError && updatedTracks) {
-          setTracks(updatedTracks);
+        if (updatedTracks) {
+          const userIds = [...new Set(updatedTracks.map(t => t.user_id))].filter((id): id is string => id !== null);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, name, avatar_url')
+            .in('id', userIds);
+
+          const tracksWithProfiles = updatedTracks.map(track => ({
+            ...track,
+            profiles: profiles?.find(p => p.id === track.user_id) || null
+          }));
+
+          setTracks(tracksWithProfiles);
         }
 
-        // Reload player
         await playerControls.reload();
-        
         setIsUploading(false);
       } catch (err) {
         console.error("Error handling recording:", err);
-        toast.error(`Recording failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        toast.error('Recording failed');
         setIsUploading(false);
       }
     } else {
@@ -357,7 +347,7 @@ export default function WorkspacePage() {
         await recorderControls.startRecording();
       } catch (err) {
         console.error('Error starting recording:', err);
-        toast.error(`Failed to start recording: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        toast.error('Failed to start recording');
       }
     }
   };
@@ -371,9 +361,7 @@ export default function WorkspacePage() {
     }
   };
 
-  const handleStop = () => {
-    playerControls.stop();
-  };
+  const handleStop = () => playerControls.stop();
 
   // Format time helpers
   const formatTime = (seconds: number): string => {
@@ -421,10 +409,7 @@ export default function WorkspacePage() {
         <div className="text-white text-description font-source-sans">
           You don't have access to this project
         </div>
-        <Button
-          onClick={() => router.push("/messages")}
-          className="bg-primary text-primary-foreground"
-        >
+        <Button onClick={() => router.push("/messages")} className="bg-primary text-primary-foreground">
           Back to Messages
         </Button>
       </div>
@@ -444,138 +429,31 @@ export default function WorkspacePage() {
   return (
     <SidebarProvider open={showChat} onOpenChange={setShowChat}>
       <div className="w-screen h-screen flex flex-col bg-[#2a2a2a] overflow-hidden">
-        {/* Top bar */}
-        <div className="w-full bg-background px-4 py-3 flex flex-row justify-between items-end z-50">
-          {/* Left section */}
-          <div className="flex flex-row gap-3 items-center">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => router.push("/messages")}
-            >
-              <Home size={20} />
-            </Button>
-
-            <Button
-              className="bg-black text-white hover:bg-black/90 font-source-sans"
-              size="sm"
-            >
-              Publish
-            </Button>
-          </div>
-
-          {/* Center section - Transport controls */}
-          <div className="flex flex-row gap-6 items-center">
-            {/* Media buttons */}
-            <Menubar className="rounded-full">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleStop}
-                disabled={!playerState.isPlaying && playerState.currentTime === 0}
-              >
-                <SkipBack size={20} className="fill-black" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handlePlayPause}
-                disabled={playerState.tracks.size === 0}
-              >
-                {playerState.isPlaying ? 
-                  <Pause size={20} className="fill-black" /> : 
-                  <Play size={20} className="fill-black" />
-                }
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleRecord}
-                className={recorderState.isRecording ? 'text-destructive' : ''}
-                disabled={isUploading || !selectedTrackId}
-              >
-                {isUploading ? (
-                  <LoadingSpinner size={20} />
-                ) : (
-                  <Circle size={20} fill={recorderState.isRecording ? 'currentColor' : 'none'} />
-                )}
-              </Button>
-            </Menubar>
-
-            {/* Time signature */}
-            <Menubar className="rounded-full h-full">
-              <div className="flex flex-row items-center px-2">
-                <div className="flex flex-col items-center">
-                  <span className="text-description">{getCurrentBar().toString().padStart(3, '0')}</span>
-                  <span className="text-muted-foreground uppercase text-metadata">Bar</span>
-                </div>
-                <div className="flex flex-col items-center uppercase text-metadata">
-                  <span className="text-description">.</span>
-                  <span className="text-white">.</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-description">{getCurrentBeat()}</span>
-                  <span className="text-muted-foreground uppercase text-metadata">Beat</span>
-                </div>   
-              </div>
-              
-              <Separator orientation="vertical" className="!h-10" />
-
-              <div className="flex flex-col items-center px-2">
-                <span className="text-description">{bpm}</span>
-                <span className="text-muted-foreground uppercase text-metadata">BPM</span>
-              </div>
-              
-              <Separator orientation="vertical" className="!h-10" />
-
-              <div className="flex flex-col items-center px-2">
-                <span className="text-description">{formatTime(playerState.currentTime)}</span>
-                <span className="text-muted-foreground uppercase text-metadata">Time</span>
-              </div>
-            </Menubar>
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="rounded-full"
-            >
-              <Music size={20} />
-            </Button>
-          </div>
-
-          {/* Right section - Project info */}
-          <div className="flex flex-col gap-2 items-left">
-            <span className="text-title font-plex-serif">
-              {project.title}
-            </span>
-            <div className="flex flex-row gap-8 items-center">
-              {/* Collaborator avatars */}
-              <div className="flex flex-row gap-4 items-center">
-                {project.post_authors.map((author) => (
-                  <Avatar
-                    key={author.user_id}
-                    src={author.profiles?.avatar_url ?? undefined}
-                    alt={author.profiles?.name || "User"}
-                    className="w-8 h-8"
-                  />
-                ))}
-                <Button size="icon" variant="outline" className="rounded-full">
-                  <Plus />
-                </Button>
-              </div>
-              <Button size="icon" variant="outline" onClick={() => setShowChat(!showChat)}>
-                <PanelRight />
-              </Button>
-            </div>
-          </div>
-        </div>
+        {/* Header */}
+        <WorkspaceHeader
+          project={project}
+          isPlaying={playerState.isPlaying}
+          isRecording={recorderState.isRecording}
+          isUploading={isUploading}
+          currentTime={playerState.currentTime}
+          tracksCount={playerState.tracks.size}
+          bpm={bpm}
+          onPlayPause={handlePlayPause}
+          onStop={handleStop}
+          onRecord={handleRecord}
+          onNavigateHome={() => router.push("/messages")}
+          onPublish={() => {}}
+          onToggleChat={() => setShowChat(!showChat)}
+          formatTime={formatTime}
+          getCurrentBar={getCurrentBar}
+          getCurrentBeat={getCurrentBeat}
+          hasSelectedTrack={!!selectedTrackId}
+        />
 
         {/* Main workspace area */}
         <div className="flex-1 flex flex-row overflow-hidden">
-          {/* Left sidebar - Tracks */}
-          <div className="w-48 bg-[#d9c5a8] flex flex-col overflow-y-auto">
+          {/* Left sidebar - Tracks with controls */}
+          <div className="w-80 bg-[#d9c5a8] flex flex-col overflow-y-auto">
             <div className="flex flex-row justify-between items-center p-3 pb-2">
               <span className="text-sub-description font-source-sans font-medium">
                 Tracks
@@ -587,11 +465,7 @@ export default function WorkspacePage() {
                 onClick={handleAddTrack}
                 disabled={isCreatingTrack}
               >
-                {isCreatingTrack ? (
-                  <LoadingSpinner size={14} />
-                ) : (
-                  <Plus size={14} />
-                )}
+                {isCreatingTrack ? <LoadingSpinner size={14} /> : <Plus size={14} />}
               </Button>
             </div>
             
@@ -602,20 +476,19 @@ export default function WorkspacePage() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col pt-1">
+              <div className="flex flex-col gap-2 p-2">
                 {tracks.map((track) => (
-                  <Button
+                  <TrackControl
                     key={track.id}
-                    onClick={() => {
-                      setSelectedTrackId(track.id);
-                    }}
-                    className={`h-16  transition-colors bg-transparent ${selectedTrackId === track.id ? 'bg-primary' : '' }`}
-                    variant="default"
-                  >
-                    <span className="text-sub-description font-source-sans">
-                      {track.title}
-                    </span>
-                  </Button>
+                    track={track}
+                    isSelected={selectedTrackId === track.id}
+                    onSelect={() => setSelectedTrackId(track.id)}
+                    onVolumeChange={handleVolumeChange}
+                    onMuteToggle={handleMuteToggle}
+                    onSoloToggle={handleSoloToggle}
+                    onDelete={handleDeleteTrack}
+                    onNameUpdate={handleTrackNameUpdate}
+                  />
                 ))}
               </div>
             )}
@@ -642,7 +515,7 @@ export default function WorkspacePage() {
               onMouseMove={handleTimelineMouseMove}
               onMouseUp={handleTimelineMouseUp}
             >
-              {/* Playhead - scrubber / show current position */}
+              {/* Playhead */}
               {playerState.duration > 0 && (
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-white z-20 pointer-events-none"
@@ -666,7 +539,7 @@ export default function WorkspacePage() {
                   {tracks.map((track, index) => (
                     <div
                       key={track.id}
-                      className={`h-full border-b border-[#2a2a2a] flex items-center ${
+                      className={`h-20 border-b border-[#2a2a2a] flex items-center ${
                         selectedTrackId === track.id ? 'bg-[#4a4a4a]' : ''
                       }`}
                       onClick={() => setSelectedTrackId(track.id)}
@@ -680,7 +553,7 @@ export default function WorkspacePage() {
                           pixelsPerSecond={pixelsPerSecond}
                         />
                       ) : (
-                        <div className="text-gray-500 text-sub-description font-source-sans italic">
+                        <div className="text-gray-500 text-sub-description font-source-sans italic px-4">
                           Empty - Record to add audio
                         </div>
                       )}
@@ -698,11 +571,7 @@ export default function WorkspacePage() {
                 <span className="text-sub-description font-source-sans font-medium">
                   Project Chat
                 </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowChat(false)}
-                >
+                <Button variant="ghost" size="icon" onClick={() => setShowChat(false)}>
                   <MessageSquare size={16} />
                 </Button>
               </div>
