@@ -91,6 +91,12 @@ export default function WorkspacePage() {
     loadProject();
   }, [projectId, user]);
 
+  // Debug media devices
+  useEffect(() => {
+    console.log('navigator.mediaDevices:', navigator.mediaDevices);
+    console.log('getUserMedia available:', !!navigator.mediaDevices?.getUserMedia);
+  }, []);
+
   // Load tracks when project loads
   useEffect(() => {
     async function loadTracks() {
@@ -138,7 +144,6 @@ export default function WorkspacePage() {
 
       if (error) {
         console.error('Error creating track:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
         toast.error(`Failed to create track: ${error.message || 'Unknown error'}`);
         setIsCreatingTrack(false);
         return;
@@ -180,13 +185,18 @@ export default function WorkspacePage() {
 
   // Record into selected track
   const handleRecord = async () => {
+    console.log('handleRecord called');
+    console.log('selectedTrackId:', selectedTrackId);
+    console.log('recorderState:', recorderState);
+    
     if (!user || !projectId || !selectedTrackId) {
+      console.log('Missing requirements:', { user: !!user, projectId, selectedTrackId });
       toast.error('Please select a track first');
       return;
     }
 
     if (recorderState.isRecording) {
-      // Stop recording and save to selected track
+      console.log('Stopping recording...');
       setIsUploading(true);
       try {
         const blob = await recorderControls.stopRecording();
@@ -213,11 +223,12 @@ export default function WorkspacePage() {
           .upload(filename, blob, {
             contentType: 'audio/webm',
             cacheControl: '3600',
+            upsert: false,
           });
 
         if (uploadError) {
           console.error('Error uploading audio:', uploadError);
-          toast.error("Failed to upload recording");
+          toast.error(`Failed to upload recording: ${uploadError.message}`);
           setIsUploading(false);
           return;
         }
@@ -233,10 +244,16 @@ export default function WorkspacePage() {
           audio.addEventListener('loadedmetadata', () => {
             resolve();
           });
+          audio.addEventListener('error', () => {
+            resolve(); // Resolve anyway to avoid hanging
+          });
           audio.src = audioUrl;
         });
-        const duration = Math.floor(audio.duration);
+        const duration = Math.floor(audio.duration || 0);
         URL.revokeObjectURL(audioUrl);
+
+        console.log('Audio duration:', duration);
+        console.log('Public URL:', urlData.publicUrl);
 
         // Update track with audio URL and duration
         const { error: updateError } = await supabase
@@ -256,28 +273,37 @@ export default function WorkspacePage() {
 
         toast.success("Recording saved!");
         
-        // Reload tracks
-        const { data: updatedTracks } = await supabase
+        // Reload tracks to update UI
+        const { data: updatedTracks, error: tracksError } = await supabase
           .from('tracks')
           .select('*')
           .eq('post_id', projectId)
           .order('track_number', { ascending: true });
 
-        if (updatedTracks) {
+        if (!tracksError && updatedTracks) {
           setTracks(updatedTracks);
+          console.log('Tracks reloaded:', updatedTracks.length);
         }
 
-        // Reload multi-track player
-        window.location.reload();
+        // Reset player to reload the new audio
+        // Instead of window.location.reload(), we'll trigger a player reload
+        playerControls.stop();
+        
+        setIsUploading(false);
       } catch (err) {
         console.error("Error handling recording:", err);
-        toast.error("Recording failed");
-      } finally {
+        toast.error(`Recording failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
         setIsUploading(false);
       }
     } else {
-      // Start recording
-      await recorderControls.startRecording();
+      console.log('Starting recording...');
+      try {
+        await recorderControls.startRecording();
+        console.log('Recording started successfully');
+      } catch (err) {
+        console.error('Error starting recording:', err);
+        toast.error(`Failed to start recording: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
     }
   };
 
@@ -391,7 +417,6 @@ export default function WorkspacePage() {
                 variant="ghost"
                 size="icon"
                 onClick={handleStop}
-                className="hover:bg-transparent"
                 disabled={!playerState.isPlaying && playerState.currentTime === 0}
               >
                 <SkipBack size={20} className="fill-black" />
@@ -401,7 +426,6 @@ export default function WorkspacePage() {
                 variant="ghost"
                 size="icon"
                 onClick={handlePlayPause}
-                className="hover:bg-transparent"
                 disabled={playerState.tracks.size === 0}
               >
                 {playerState.isPlaying ? 
@@ -414,9 +438,7 @@ export default function WorkspacePage() {
                 variant="ghost"
                 size="icon"
                 onClick={handleRecord}
-                className={`hover:bg-transparent hover:text-destructive ${
-                  recorderState.isRecording ? 'text-destructive' : ''
-                }`}
+                className={recorderState.isRecording ? 'text-destructive' : ''}
                 disabled={isUploading || !selectedTrackId}
               >
                 {isUploading ? (
@@ -506,7 +528,7 @@ export default function WorkspacePage() {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-6 w-6 bg-transparent backdrop-blur-md"
+                className="h-6 w-6"
                 onClick={handleAddTrack}
                 disabled={isCreatingTrack}
               >
@@ -527,19 +549,19 @@ export default function WorkspacePage() {
             ) : (
               <div className="flex flex-col gap-2">
                 {tracks.map((track) => (
-                  <button
+                  <Button
                     key={track.id}
-                    onClick={() => setSelectedTrackId(track.id)}
-                    className={`p-2 rounded text-left transition-colors ${
-                      selectedTrackId === track.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-background/30 backdrop-blur-sm hover:bg-background/50'
-                    }`}
+                    variant={selectedTrackId === track.id ? "default" : "ghost"}
+                    onClick={() => {
+                      console.log('Track clicked:', track.id);
+                      setSelectedTrackId(track.id);
+                    }}
+                    className="justify-start"
                   >
-                    <div className="text-sub-description font-source-sans">
-                      {track.audio_url ? '🎵' : '⚪'} {track.title}
-                    </div>
-                  </button>
+                    <span className="text-sub-description font-source-sans">
+                      {track.title}
+                    </span>
+                  </Button>
                 ))}
               </div>
             )}
