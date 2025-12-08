@@ -19,6 +19,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { X, Send } from "lucide-react";
 import { toast } from "sonner";
 import StartProjectDialog from "@/components/messages/StartProjectDialog";
+import { hexToRgba } from "@/utils/badgeColors";
 
 export default function MessageThreadPage() {
   const router = useRouter();
@@ -33,10 +34,18 @@ export default function MessageThreadPage() {
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
+  // Scroll to bottom on initial load
+  useEffect(() => {
+    if (!isLoading && messages.length > 0) {
+      scrollToBottom("instant");
+    }
+  }, [isLoading]);
+
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -79,8 +88,8 @@ export default function MessageThreadPage() {
 
   if (!user) {
     return (
-      <div className="w-screen h-screen sm:p-4 flex items-center justify-center">
-        <div className="text-description font-source-sans">
+      <div className="w-screen h-screen sm:p-4 flex items-center justify-center bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
+        <div className="text-description font-source-sans text-white">
           Please sign in to view messages
         </div>
       </div>
@@ -89,19 +98,19 @@ export default function MessageThreadPage() {
 
   if (isLoading) {
     return (
-      <div className="w-screen h-screen sm:p-4">
-        <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75">
+      <div className="w-screen h-screen sm:p-4 bg-[#1E1E1E] overflow-hidden">
+        <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat border border-white/10">
           <div className="flex flex-row justify-between">
             <Button
               variant="secondary"
               size="icon"
               onClick={() => router.push("/messages")}
-              className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner"
+              className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
             >
               <X />
             </Button>
           </div>
-          <Separator />
+          <Separator className="bg-white/20" />
           <div className="flex items-center justify-center h-full">
             <LoadingSpinner size={32} />
           </div>
@@ -112,19 +121,19 @@ export default function MessageThreadPage() {
 
   if (error) {
     return (
-      <div className="w-screen h-screen sm:p-4">
-        <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75">
+      <div className="w-screen h-screen sm:p-4 bg-[#1E1E1E] overflow-hidden">
+        <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat border border-white/10">
           <div className="flex flex-row justify-between">
             <Button
               variant="secondary"
               size="icon"
               onClick={() => router.push("/messages")}
-              className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner"
+              className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
             >
               <X />
             </Button>
           </div>
-          <Separator />
+          <Separator className="bg-white/20" />
           <div className="text-red-500 text-center">{error}</div>
         </div>
       </div>
@@ -134,14 +143,14 @@ export default function MessageThreadPage() {
   const otherParticipant = conversation ? getOtherParticipant(conversation, user.id) : null;
 
   return (
-    <div className="w-screen h-screen sm:p-4">
-      <div className="w-full h-full p-4 pb-4 flex flex-col gap-4 rounded-md sm:bg-[#F2F2F2]/75 overflow-hidden">
+    <div className="w-screen h-screen sm:p-4 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] bg-[#1E1E1E] overflow-hidden">
+      <div className="w-full h-full p-4 pb-4 flex flex-col gap-4 rounded-md  bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat border border-white/10">
         <div className="flex flex-row justify-between items-center">
           <Button
             variant="secondary"
             size="icon"
             onClick={() => router.push("/messages")}
-            className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner"
+            className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
           >
             <X />
           </Button>
@@ -152,7 +161,7 @@ export default function MessageThreadPage() {
               alt={otherParticipant?.profiles?.name || "User"}
               className="w-8 h-8"
             />
-            <span className="text-description font-source-sans font-medium">
+            <span className="text-description font-source-sans font-medium text-white">
               {otherParticipant?.profiles?.name || "Unknown User"}
             </span>
           </div>
@@ -161,18 +170,18 @@ export default function MessageThreadPage() {
             variant="secondary"
             size="sm"
             onClick={() => setShowProjectDialog(true)}
-            className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner text-sub-description font-source-sans"
+            className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 !text-white hover:bg-white/15 hover:border-white/30 text-sub-description font-source-sans"
           >
             Start Project
           </Button>
         </div>
 
-        <Separator />
+        <Separator className="bg-white/20" />
 
         <div className="flex-1 overflow-auto px-4">
-          <div className="w-full sm:w-2/3 lg:w-1/2 m-auto flex flex-col gap-3 py-4">
+          <div className="w-full flex flex-col gap-3 py-4">
             {messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-description font-source-sans">
+              <div className="flex items-center justify-center h-full text-white/60 text-description font-source-sans">
                 No messages yet. Start the conversation!
               </div>
             ) : (
@@ -187,12 +196,8 @@ export default function MessageThreadPage() {
                     }`}
                   >
                     {message.post && (
-                      <div
-                        className={`max-w-[70%] mb-1 ${
-                          isOwnMessage ? "self-end" : "self-start"
-                        }`}
-                      >
-                        <div className="p-3 rounded-lg bg-background/50 backdrop-blur-md shadow-inner">
+                      <div className={`max-w-[70%] mb-1`}>
+                        <div className="p-3 rounded-lg bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/10">
                           <div className="flex flex-row gap-2 items-center">
                             {message.post.cover_image_url && (
                               <img
@@ -202,12 +207,12 @@ export default function MessageThreadPage() {
                               />
                             )}
                             <div className="flex flex-col flex-1">
-                              <span className="text-sub-description font-plex-serif font-medium line-clamp-1">
+                              <span className="text-sub-description font-plex-serif font-medium line-clamp-1 text-white">
                                 {message.post.title}
                               </span>
                               <button
                                 onClick={() => router.push(`/post/${message.post!.id}`)}
-                                className="text-metadata font-source-sans text-primary hover:underline text-left"
+                                className="text-metadata font-source-sans text-white/80 hover:underline text-left"
                               >
                                 View post
                               </button>
@@ -218,17 +223,26 @@ export default function MessageThreadPage() {
                     )}
 
                     <div
-                      className={`max-w-[70%] p-3 rounded-lg ${
-                        isOwnMessage
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-background/50 backdrop-blur-md shadow-inner"
+                      className={`max-w-[70%] p-3 rounded-lg backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] text-white ${
+                        isOwnMessage ? "border" : "border"
                       }`}
+                      style={
+                        isOwnMessage
+                          ? {
+                              backgroundColor: hexToRgba("#9ECB45", 0.15),
+                              borderColor: hexToRgba("#9ECB45", 0.3),
+                            }
+                          : {
+                              backgroundColor: "rgba(255, 255, 255, 0.1)",
+                              borderColor: "rgba(255, 255, 255, 0.1)",
+                            }
+                      }
                     >
                       <p className="text-description font-source-sans whitespace-pre-wrap break-words">
                         {message.content}
                       </p>
                     </div>
-                    <span className="text-metadata font-source-sans text-muted-foreground uppercase px-2">
+                    <span className="text-metadata font-source-sans text-white/60 uppercase px-2">
                       {message.created_at && formatDate(message.created_at)}
                     </span>
                   </div>
@@ -239,7 +253,7 @@ export default function MessageThreadPage() {
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-white/20" />
 
         <div className="flex flex-row gap-2 items-end px-4">
           <textarea
@@ -247,7 +261,7 @@ export default function MessageThreadPage() {
             onChange={(e) => setMessageText(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            className="flex-1 min-h-[44px] max-h-[120px] p-3 rounded-lg bg-background/50 backdrop-blur-md shadow-inner resize-none text-description font-source-sans focus:outline-none focus:ring-2 focus:ring-ring"
+            className="flex-1 min-h-[44px] max-h-[120px] p-3 rounded-lg bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 resize-none text-description font-source-sans text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
             rows={1}
             disabled={isSending}
           />
@@ -255,7 +269,7 @@ export default function MessageThreadPage() {
             onClick={handleSendMessage}
             disabled={!messageText.trim() || isSending}
             size="icon"
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            className="bg-white/20 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(255,255,255,0.1)] border border-white/30 text-white hover:bg-white/25 hover:border-white/40"
           >
             {isSending ? <LoadingSpinner size={20} /> : <Send size={20} />}
           </Button>
