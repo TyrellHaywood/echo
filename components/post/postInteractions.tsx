@@ -40,7 +40,7 @@ export default function PostInteractions({
   const [showMessageDialog, setShowMessageDialog] = useState(false);
 
   return (
-    <Menubar className="absolute bottom-32 left-1/2 transform -translate-x-1/2 w-1/3 m-auto flex justify-between px-3 py-6 rounded-full bg-background/50 backdrop-blur-md shadow-inner">
+    <Menubar className="absolute bottom-32 left-1/2 transform -translate-x-1/2 w-1/3 m-auto flex justify-between px-3 py-6 rounded-full bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30">
       <MenubarMenu>
         {/* Echo button */}
         {post && (
@@ -97,7 +97,7 @@ export default function PostInteractions({
         </Button>
         <Button
           variant="ghost"
-          className="hover:border hover:border-input"
+          className="hover:bg-transparent hover:opacity-70"
           onClick={() => setShowMessageDialog(true)}
         >
           <Send />
