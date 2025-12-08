@@ -374,7 +374,7 @@ export default function CreatePost() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="hover:border hover:border-input">
+        <Button variant="ghost" className="text-white hover:bg-white/15 hover:border-white/30">
           <Plus />
         </Button>
       </DialogTrigger>

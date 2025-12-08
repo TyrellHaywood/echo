@@ -3,7 +3,7 @@ import Toolbar from "@/components/Toolbar";
 
 export default function ProfileSkeleton() {
   return (
-    <>
+    <div className="relative w-screen h-screen bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
       <Toolbar />
 
       {/* Edit button skeleton */}
@@ -47,6 +47,6 @@ export default function ProfileSkeleton() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

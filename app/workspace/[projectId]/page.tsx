@@ -16,9 +16,7 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Input } from "@/components/ui/input";
 import { TrackWaveform } from "@/components/workspace/TrackWaveform";
 import { TrackControl } from "@/components/workspace/TrackControl";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
@@ -66,7 +64,7 @@ export default function WorkspacePage() {
   // Cursor ref
   const workspaceRef = useRef<HTMLDivElement>(null);
   // Cursor tracking
-const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, workspaceRef);
+  const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, workspaceRef);
 
   // Track colors for waveforms
   const trackColors = [
@@ -433,7 +431,7 @@ const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, wo
   // Loading states
   if (!user) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-[#2a2a2a]">
+      <div className="w-screen h-screen flex items-center justify-center bg-[#1E1E1E]">
         <div className="text-white text-description font-source-sans">
           Please sign in to access workspace
         </div>
@@ -443,7 +441,7 @@ const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, wo
 
   if (isLoading) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-[#2a2a2a]">
+      <div className="w-screen h-screen flex items-center justify-center bg-[#1E1E1E]">
         <LoadingSpinner size={48} className="text-white" />
       </div>
     );
@@ -451,11 +449,14 @@ const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, wo
 
   if (!hasAccess) {
     return (
-      <div className="w-screen h-screen flex flex-col gap-4 items-center justify-center bg-[#2a2a2a]">
+      <div className="w-screen h-screen flex flex-col gap-4 items-center justify-center bg-[#1E1E1E]">
         <div className="text-white text-description font-source-sans">
           You don't have access to this project
         </div>
-        <Button onClick={() => router.push("/messages")} className="bg-primary text-primary-foreground">
+        <Button 
+          onClick={() => router.push("/messages")} 
+          className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
+        >
           Back to Messages
         </Button>
       </div>
@@ -464,7 +465,7 @@ const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, wo
 
   if (!project) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-[#2a2a2a]">
+      <div className="w-screen h-screen flex items-center justify-center bg-[#1E1E1E]">
         <div className="text-white text-description font-source-sans">
           Project not found
         </div>
@@ -474,7 +475,7 @@ const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, wo
 
   return (
     <SidebarProvider open={showChat} onOpenChange={setShowChat}>
-      <div className="w-screen h-screen flex flex-col bg-[#2a2a2a] overflow-hidden">
+      <div className="w-screen h-screen flex flex-col bg-[#1E1E1E] overflow-hidden">
         {/* Header */}
         <WorkspaceHeader
           project={project}
@@ -522,49 +523,52 @@ const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, wo
           ))}
 
           {/* Left sidebar - Tracks with controls */}
-          <div className="w-80 bg-[#d9c5a8] flex flex-col overflow-y-auto">
-            <div className="flex flex-row justify-between items-center p-3 pb-2">
-              <span className="text-sub-description font-source-sans font-medium">
-                Tracks
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-6 w-6"
-                onClick={handleAddTrack}
-                disabled={isCreatingTrack}
-              >
-                {isCreatingTrack ? <LoadingSpinner size={14} /> : <Plus size={14} />}
-              </Button>
-            </div>
-            
-            {tracks.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center p-3">
-                <div className="text-center text-muted-foreground text-sub-description font-source-sans">
-                  No tracks yet
+          <div className="w-80 flex flex-col overflow-y-auto relative bg-white/45 backdrop-blur-xl">
+            <div className="absolute inset-0 bg-[#F4B266]/45"></div>
+            <div className="relative z-10 flex flex-col h-full">
+              <div className="flex flex-row justify-between items-center p-3 pb-2">
+                <span className="text-sub-description font-source-sans font-medium">
+                  Tracks
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-6 w-6 bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 hover:bg-white/15 hover:border-white/30"
+                  onClick={handleAddTrack}
+                  disabled={isCreatingTrack}
+                >
+                  {isCreatingTrack ? <LoadingSpinner size={14} /> : <Plus size={14} />}
+                </Button>
+              </div>
+              
+              {tracks.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center p-3">
+                  <div className="text-center text-muted-foreground text-sub-description font-source-sans">
+                    No tracks yet
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 p-2">
-                {tracks.map((track) => (
-                  <TrackControl
-                    key={track.id}
-                    track={track}
-                    isSelected={selectedTrackId === track.id}
-                    onSelect={() => setSelectedTrackId(track.id)}
-                    onVolumeChange={handleVolumeChange}
-                    onMuteToggle={handleMuteToggle}
-                    onSoloToggle={handleSoloToggle}
-                    onDelete={handleDeleteTrack}
-                    onNameUpdate={handleTrackNameUpdate}
-                  />
-                ))}
-              </div>
-            )}
+              ) : (
+                <div className="flex flex-col p-2">
+                  {tracks.map((track) => (
+                    <TrackControl
+                      key={track.id}
+                      track={track}
+                      isSelected={selectedTrackId === track.id}
+                      onSelect={() => setSelectedTrackId(track.id)}
+                      onVolumeChange={handleVolumeChange}
+                      onMuteToggle={handleMuteToggle}
+                      onSoloToggle={handleSoloToggle}
+                      onDelete={handleDeleteTrack}
+                      onNameUpdate={handleTrackNameUpdate}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Center - Timeline */}
-          <div className="flex-1 bg-[#3a3a3a] relative overflow-x-auto overflow-y-hidden">
+          <div className="flex-1 relative overflow-x-auto overflow-y-hidden bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
             {/* Timeline header with bar numbers */}
             <div className="sticky top-0 left-0 right-0 h-12 bg-[#4a4a4a] border-b border-[#2a2a2a] flex items-center px-4 z-10">
               <div className="flex-1 flex flex-row text-xs text-gray-400 font-source-sans">
@@ -608,8 +612,8 @@ const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, wo
                   {tracks.map((track, index) => (
                     <div
                       key={track.id}
-                      className={`h-20 border-b border-[#2a2a2a] flex items-center ${
-                        selectedTrackId === track.id ? 'bg-[#4a4a4a]' : ''
+                      className={`h-[100px] flex items-center ${
+                        selectedTrackId === track.id ? 'bg-[#4a4a4a]/50' : ''
                       }`}
                       onClick={() => setSelectedTrackId(track.id)}
                     >
@@ -635,23 +639,33 @@ const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, wo
           </div>
 
           {/* Right sidebar - Chat */}
-          <Sidebar side="right" className="z-10">
-            <SidebarHeader>
-              <div className="flex flex-row justify-between items-center">
-                <span className="text-sub-description font-source-sans font-medium">
-                  Project Chat
-                </span>
-                <Button variant="ghost" size="icon" onClick={() => setShowChat(false)}>
-                  <MessageSquare size={16} />
-                </Button>
-              </div>
-            </SidebarHeader>
+          <Sidebar 
+            side="right" 
+            className="z-10 !bg-[#1E1E1E] shadow-[-4px_0_16px_rgba(0,0,0,0.3)] border-l border-white/10"
+          >
+            <div className="flex flex-col h-full bg-[#1E1E1E]">
+              <SidebarHeader className="bg-[#1E1E1E]">
+                <div className="flex flex-row justify-between items-center">
+                  <span className="text-sub-description font-source-sans font-medium text-white">
+                    Project Chat
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setShowChat(false)}
+                    className="text-white hover:bg-white/10"
+                  >
+                    <MessageSquare size={16} />
+                  </Button>
+                </div>
+              </SidebarHeader>
 
-            <SidebarContent className="p-0">
-              {user && (
-                <ProjectChat projectId={projectId} currentUserId={user.id} />
-              )}
-            </SidebarContent>
+              <SidebarContent className="p-0 bg-[#1E1E1E]">
+                {user && (
+                  <ProjectChat projectId={projectId} currentUserId={user.id} />
+                )}
+              </SidebarContent>
+            </div>
           </Sidebar>
         </div>
       </div>

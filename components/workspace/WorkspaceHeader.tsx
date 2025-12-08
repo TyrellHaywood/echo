@@ -51,7 +51,6 @@ export function WorkspaceHeader({
   onStop,
   onRecord,
   onNavigateHome,
-  onPublish,
   onToggleChat,
   formatTime,
   getCurrentBar,
@@ -61,10 +60,15 @@ export function WorkspaceHeader({
   onlineCollaborators,
 }: WorkspaceHeaderProps) {
   return (
-    <div className="w-full bg-background px-4 py-3 flex flex-row justify-between items-end z-50">
+    <div className="w-full bg-[#1E1E1E] px-4 py-3 flex flex-row justify-between items-end z-50">
       {/* Left section */}
       <div className="flex flex-row gap-3 items-center">
-        <Button variant="outline" size="icon" onClick={onNavigateHome}>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={onNavigateHome}
+          className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
+        >
           <Home size={20} />
         </Button>
         {publishButton && <div>{publishButton}</div>}
@@ -73,14 +77,15 @@ export function WorkspaceHeader({
       {/* Center section - Transport controls */}
       <div className="flex flex-row gap-6 items-center">
         {/* Media buttons */}
-        <Menubar className="rounded-full">
+        <Menubar className="rounded-full bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20">
           <Button
             variant="ghost"
             size="icon"
             onClick={onStop}
             disabled={!isPlaying && currentTime === 0}
+            className="text-white hover:bg-white/10"
           >
-            <SkipBack size={20} className="fill-black" />
+            <SkipBack size={20} className="fill-white" />
           </Button>
           
           <Button
@@ -88,10 +93,11 @@ export function WorkspaceHeader({
             size="icon"
             onClick={onPlayPause}
             disabled={tracksCount === 0}
+            className="text-white hover:bg-white/10"
           >
             {isPlaying ? 
-              <Pause size={20} className="fill-black" /> : 
-              <Play size={20} className="fill-black" />
+              <Pause size={20} className="fill-white" /> : 
+              <Play size={20} className="fill-white" />
             }
           </Button>
           
@@ -99,7 +105,7 @@ export function WorkspaceHeader({
             variant="ghost"
             size="icon"
             onClick={onRecord}
-            className={isRecording ? 'text-destructive' : ''}
+            className={`hover:bg-white/10 ${isRecording ? 'text-red-500' : 'text-white'}`}
             disabled={isUploading || !hasSelectedTrack}
           >
             {isUploading ? (
@@ -111,73 +117,86 @@ export function WorkspaceHeader({
         </Menubar>
 
         {/* Time signature */}
-        <Menubar className="rounded-full h-full">
+        <Menubar className="rounded-full h-full bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20">
           <div className="flex flex-row items-center px-2">
             <div className="flex flex-col items-center">
-              <span className="text-description">{getCurrentBar().toString().padStart(3, '0')}</span>
-              <span className="text-muted-foreground uppercase text-metadata">Bar</span>
+              <span className="text-description text-white">{getCurrentBar().toString().padStart(3, '0')}</span>
+              <span className="text-white/60 uppercase text-metadata">Bar</span>
             </div>
             <div className="flex flex-col items-center uppercase text-metadata">
-              <span className="text-description">.</span>
-              <span className="text-white">.</span>
+              <span className="text-description text-white">.</span>
+              <span className="text-white/60">.</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-description">{getCurrentBeat()}</span>
-              <span className="text-muted-foreground uppercase text-metadata">Beat</span>
+              <span className="text-description text-white">{getCurrentBeat()}</span>
+              <span className="text-white/60 uppercase text-metadata">Beat</span>
             </div>   
           </div>
           
-          <Separator orientation="vertical" className="!h-10" />
+          <Separator orientation="vertical" className="!h-10 bg-white/20" />
 
           <div className="flex flex-col items-center px-2">
-            <span className="text-description">{bpm}</span>
-            <span className="text-muted-foreground uppercase text-metadata">BPM</span>
+            <span className="text-description text-white">{bpm}</span>
+            <span className="text-white/60 uppercase text-metadata">BPM</span>
           </div>
           
-          <Separator orientation="vertical" className="!h-10" />
+          <Separator orientation="vertical" className="!h-10 bg-white/20" />
 
           <div className="flex flex-col items-center px-2">
-            <span className="text-description">{formatTime(currentTime)}</span>
-            <span className="text-muted-foreground uppercase text-metadata">Time</span>
+            <span className="text-description text-white">{formatTime(currentTime)}</span>
+            <span className="text-white/60 uppercase text-metadata">Time</span>
           </div>
         </Menubar>
 
-        <Button variant="outline" size="icon" className="rounded-full">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="rounded-full bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
+        >
           <Music size={20} />
         </Button>
       </div>
 
       {/* Right section - Project info */}
       <div className="flex flex-col gap-2 items-left">
-        <span className="text-title font-plex-serif">
+        <span className="text-title font-plex-serif text-white">
           {project.title}
         </span>
         <div className="flex flex-row gap-8 items-center">
-        {/* Collaborator avatars */}
-        <div className="flex flex-row gap-4 items-center">
-          {project.post_authors.map((author) => {
-            const isOnline = onlineCollaborators?.some(
-              (user) => user.userId === author.user_id
-            );
-            return (
-              <div key={author.user_id} className="relative">
-                <Avatar
-                  src={author.profiles?.avatar_url ?? undefined}
-                  alt={author.profiles?.name || "User"}
-                  className="w-8 h-8"
-                />
-                {isOnline && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
-                )}
-              </div>
-            );
-          })}
-          <Button size="icon" variant="outline" className="rounded-full">
-            <Plus />
-          </Button>
-        </div>
+          {/* Collaborator avatars */}
+          <div className="flex flex-row gap-4 items-center">
+            {project.post_authors.map((author) => {
+              const isOnline = onlineCollaborators?.some(
+                (user) => user.userId === author.user_id
+              );
+              return (
+                <div key={author.user_id} className="relative">
+                  <Avatar
+                    src={author.profiles?.avatar_url ?? undefined}
+                    alt={author.profiles?.name || "User"}
+                    className="w-8 h-8"
+                  />
+                  {isOnline && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#1E1E1E] rounded-full" />
+                  )}
+                </div>
+              );
+            })}
+            <Button 
+              size="icon" 
+              variant="outline" 
+              className="rounded-full bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
+            >
+              <Plus />
+            </Button>
+          </div>
           
-          <Button size="icon" variant="outline" onClick={onToggleChat}>
+          <Button 
+            size="icon" 
+            variant="outline" 
+            onClick={onToggleChat}
+            className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
+          >
             <PanelRight />
           </Button>
         </div>

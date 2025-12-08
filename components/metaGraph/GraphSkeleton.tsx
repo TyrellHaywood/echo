@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GraphSkeleton() {
   return (
-    <div className="w-full h-screen relative bg-background">
+    <div className="w-full h-screen relative bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
       <div className="absolute inset-0">
         {/* Central node */}
         <Skeleton className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-md" />

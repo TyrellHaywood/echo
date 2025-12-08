@@ -20,6 +20,7 @@ import {
 } from "@/utils/postInteractions";
 import type { PostWithInteractions } from "@/utils/postInteractions";
 import { useAudioPlayer, NativeAudioPlayer } from "@/utils/audioService";
+import { getBadgeColor, hexToRgba } from "@/utils/badgeColors";
 
 // Shadcn components
 import { Menubar, MenubarMenu } from "@/components/ui/menubar";
@@ -200,15 +201,15 @@ export default function PostPage() {
 
   if (error && !post) {
     return (
-      <div className="w-screen h-screen sm:p-4 flex items-center justify-center">
+      <div className="w-screen h-screen sm:p-4 flex items-center justify-center bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
         <div className="text-red-500">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="w-screen h-screen sm:p-4">
-      <div className="w-full h-full p-4 pb-[100px] flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75 overflow-hidden">
+    <div className="w-screen h-screen sm:p-4 bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
+      <div className="w-full h-full p-4 pb-[100px] flex flex-col gap-9 rounded-md bg-[#1E1E1E]/75 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/10 overflow-hidden">
         {/* header */}
         <div className="flex flex-row justify-between">
           <Button
@@ -217,19 +218,19 @@ export default function PostPage() {
             onClick={() => {
               router.push(`/`);
             }}
-            className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner"
+            className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
           >
             <X />
           </Button>
         </div>
 
-        <Separator />
+        <Separator className="bg-white/20" />
 
         {/* content */}
         <div className="w-full overflow-auto h-full">
           <div className="w-full sm:w-1/2 lg:w-1/3 h-full m-auto flex flex-col">
             {/* title */}
-            <span className="text-title font-plex-serif">{post?.title}</span>
+            <span className="text-title font-plex-serif text-white">{post?.title}</span>
             {/* author */}
             <div className="mt-3 flex flex-row gap-2 items-center">
               <Avatar
@@ -243,7 +244,7 @@ export default function PostPage() {
                   <HoverCardTrigger>
                     <Link
                       href={`/${currentUserProfile?.username || ""}`}
-                      className="text-description font-source-sans pointer-events-pointer hover:underline"
+                      className="text-description font-source-sans pointer-events-pointer hover:underline text-white/90"
                     >
                       {currentUserProfile?.name}
                     </Link>
@@ -266,29 +267,36 @@ export default function PostPage() {
                     </div>
                   </HoverCardContent>
                 </HoverCard>
-                <span className="text-metadata font-source-sans uppercase">
+                <span className="text-metadata font-source-sans uppercase text-white/60">
                   {post?.created_at && formatDate(post.created_at)}
                 </span>
               </div>
             </div>
             {/* meta tags */}
             <div className="mt-5 flex flex-row flex-wrap gap-2 items-center">
-              {post?.types?.map((type, index) => (
-                <Badge
-                  key={index}
-                  variant="outline"
-                  className="bg-background/50 backdrop-blur-md shadow-inner sm:px-5 sm:py-1 text-description font-source-sans"
-                >
-                  {type}
-                </Badge>
-              ))}
+                {post?.types?.map((type, index) => {
+                  const bgColor = getBadgeColor(type);
+                  return (
+                    <Badge
+                      key={index}
+                      variant="outline"
+                      className="backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border-white/20 !text-white sm:px-5 sm:py-1 text-description font-source-sans"
+                      style={{
+                        backgroundColor: hexToRgba(bgColor, 0.15),
+                        borderColor: hexToRgba(bgColor, 0.3),
+                      }}
+                    >
+                      {type}
+                    </Badge>
+                  );
+                })}
             </div>
-            <Separator className="my-9" />
+            <Separator className="my-9 bg-white/20" />
             {/* Toggle between description and comments */}
             {showComments ? (
               <Comments postId={post?.id || ""} post={post} />
             ) : (
-              <span className="w-full h-auto text-description font-source-sans whitespace-pre-line">
+              <span className="w-full h-auto text-description font-source-sans whitespace-pre-line text-white/90">
                 {post?.description}
               </span>
             )}
@@ -307,7 +315,7 @@ export default function PostPage() {
 
         {/* menubar */}
         <div
-          className="flex flex-col gap-2 absolute bottom-4 left-1/2 transform -translate-x-1/2 pt-2 pb-4 border-t-[1px] border-border bg-[#F2F2F2]/50"
+          className="flex flex-col gap-2 absolute bottom-4 left-1/2 transform -translate-x-1/2 pt-2 pb-4 border-t-[1px]"
           style={{ width: "calc(100vw - 64px)" }}
         >
           {/* Audio error display and retry options */}
@@ -350,7 +358,7 @@ export default function PostPage() {
                 size={"icon"}
                 onClick={handlePlayPause}
                 disabled={!audioState.isLoaded || !!audioState.error}
-                className="m-auto bg-[#e5e5e5] p-0 bg-transparent hover:bg-transparent backdrop-blur-md flex flex-row items-center gap-2 text-foreground opacity-75 hover:opacity-100 transition-opacity duration-200 ease-in-out rounded-full"
+                className="m-auto bg-white/10 backdrop-blur-xl p-0 hover:bg-white/15 border border-white/20 hover:border-white/30 flex flex-row items-center gap-2 text-white opacity-75 hover:opacity-100 transition-opacity duration-200 ease-in-out rounded-full"
               >
                 {!post?._url ? (
                   "No audio available"
@@ -358,11 +366,11 @@ export default function PostPage() {
                   <LoadingSpinner />
                 ) : audioState.isPlaying ? (
                   <>
-                    <Pause className="fill-black" />
+                    <Pause className="fill-white" />
                   </>
                 ) : (
                   <>
-                    <Play className="fill-black" />
+                    <Play className="fill-white" />
                   </>
                 )}
               </Button>
@@ -377,7 +385,7 @@ export default function PostPage() {
                     onValueChange={handleSeek}
                     className="w-1/2 m-auto"
                   />
-                  <div className="w-1/2 m-auto flex justify-between text-xs text-muted-foreground">
+                  <div className="w-1/2 m-auto flex justify-between text-xs text-white/60">
                     <span>
                       {audioControls.formatTime(audioState.currentTime)}
                     </span>

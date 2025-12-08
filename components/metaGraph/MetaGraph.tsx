@@ -198,7 +198,7 @@ export default function MetaGraph() {
   }
 
   return (
-    <div className="w-full h-screen relative">
+    <div className="w-full h-screen relative z-10">
       <div className="w-full h-full">
         {filteredData.nodes.length > 0 ? (
           <ForceGraph2D

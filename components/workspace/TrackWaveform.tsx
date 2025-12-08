@@ -131,7 +131,7 @@ const bgColor = !isMuted ? hexToRgba(color, 0.15) : hexToRgba(color, 0.5);
 
   return (
     <div
-      className="h-16 rounded-md relative overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+      className="h-full rounded-md relative overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
       style={{
         width: `${widthPx}px`,
         backgroundColor: bgColor,

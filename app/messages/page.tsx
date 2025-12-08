@@ -20,8 +20,8 @@ export default function MessagesPage() {
 
   if (!user) {
     return (
-      <div className="w-screen h-screen sm:p-4 flex items-center justify-center">
-        <div className="text-description font-source-sans">
+      <div className="w-screen h-screen sm:p-4 flex items-center justify-center bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
+        <div className="text-description font-source-sans text-white">
           Please sign in to view messages
         </div>
       </div>
@@ -30,19 +30,19 @@ export default function MessagesPage() {
 
   if (isLoading) {
     return (
-      <div className="w-screen h-screen sm:p-4">
-        <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75">
+      <div className="w-screen h-screen sm:p-4 bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
+        <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md bg-[#1E1E1E]/75 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/10">
           <div className="flex flex-row justify-between">
             <Button
               variant="secondary"
               size="icon"
               onClick={() => router.push("/")}
-              className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner"
+              className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
             >
               <X />
             </Button>
           </div>
-          <Separator />
+          <Separator className="bg-white/20" />
           <div className="flex items-center justify-center h-full">
             <LoadingSpinner size={32} />
           </div>
@@ -53,19 +53,19 @@ export default function MessagesPage() {
 
   if (error) {
     return (
-      <div className="w-screen h-screen sm:p-4">
-        <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75">
+      <div className="w-screen h-screen sm:p-4 bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
+        <div className="w-full h-full p-4 flex flex-col gap-9 rounded-md bg-[#1E1E1E]/75 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/10">
           <div className="flex flex-row justify-between">
             <Button
               variant="secondary"
               size="icon"
               onClick={() => router.push("/")}
-              className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner"
+              className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
             >
               <X />
             </Button>
           </div>
-          <Separator />
+          <Separator className="bg-white/20" />
           <div className="text-red-500 text-center">{error}</div>
         </div>
       </div>
@@ -73,27 +73,27 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="w-screen h-screen sm:p-4">
-      <div className="w-full h-full p-4 pb-[100px] flex flex-col gap-9 rounded-md sm:bg-[#F2F2F2]/75 overflow-hidden">
+    <div className="w-screen h-screen sm:p-4 bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
+      <div className="w-full h-full p-4 pb-[100px] flex flex-col gap-9 rounded-md bg-[#1E1E1E]/75 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/10 overflow-hidden">
         <div className="flex flex-row justify-between items-center">
           <Button
             variant="secondary"
             size="icon"
             onClick={() => router.push("/")}
-            className="sm:bg-[#e5e5e5] backdrop-blur-md shadow-inner"
+            className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
           >
             <X />
           </Button>
-          <span className="text-title font-plex-serif">Messages</span>
+          <span className="text-title font-plex-serif text-white">Messages</span>
           <div className="w-10" />
         </div>
 
-        <Separator />
+        <Separator className="bg-white/20" />
 
         <div className="w-full overflow-auto h-full">
           <div className="w-full sm:w-2/3 lg:w-1/2 h-full m-auto flex flex-col gap-3">
             {conversations.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-description font-source-sans">
+              <div className="flex items-center justify-center h-full text-white/60 text-description font-source-sans">
                 No conversations yet
               </div>
             ) : (
@@ -105,7 +105,7 @@ export default function MessagesPage() {
                   <button
                     key={conversation.id}
                     onClick={() => router.push(`/messages/${conversation.id}`)}
-                    className="w-full p-4 flex flex-row gap-3 items-center rounded-lg bg-background/50 backdrop-blur-md shadow-inner hover:bg-background/70 transition-colors"
+                    className="w-full p-4 flex flex-row gap-3 items-center rounded-lg bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/10 hover:bg-white/15 transition-colors"
                   >
                     <Avatar
                       src={otherParticipant?.profiles?.avatar_url ?? undefined}
@@ -113,17 +113,17 @@ export default function MessagesPage() {
                       className="w-12 h-12"
                     />
                     <div className="flex-1 flex flex-col items-start text-left">
-                      <span className="text-description font-source-sans font-medium">
+                      <span className="text-description font-source-sans font-medium text-white">
                         {otherParticipant?.profiles?.name || "Unknown User"}
                       </span>
                       {lastMessage && (
-                        <span className="text-sub-description font-source-sans text-muted-foreground truncate w-full">
+                        <span className="text-sub-description font-source-sans text-white/60 truncate w-full">
                           {lastMessage.content}
                         </span>
                       )}
                     </div>
                     {lastMessage && (
-                      <span className="text-metadata font-source-sans text-muted-foreground uppercase">
+                      <span className="text-metadata font-source-sans text-white/60 uppercase">
                         {formatDate(lastMessage.created_at || "")}
                       </span>
                     )}
