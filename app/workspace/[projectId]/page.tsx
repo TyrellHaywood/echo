@@ -23,6 +23,7 @@ import { TrackWaveform } from "@/components/workspace/TrackWaveform";
 import { TrackControl } from "@/components/workspace/TrackControl";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import PublishDialog from '@/components/workspace/PublishDialog';
+import { ProjectChat } from '@/components/workspace/ProjectChat';
 import { toast } from "sonner";
 import { MessageSquare, Plus } from "lucide-react";
 
@@ -453,7 +454,7 @@ export default function WorkspacePage() {
             <PublishDialog
               projectId={projectId}
               tracks={tracks}
-              projectTitle="Project"
+              projectTitle={project.title}
             />
           }
         />
@@ -586,21 +587,11 @@ export default function WorkspacePage() {
               </div>
             </SidebarHeader>
 
-            <SidebarContent>
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center text-muted-foreground text-sub-description font-source-sans">
-                  No messages yet
-                </div>
-              </div>
+            <SidebarContent className="p-0">
+              {user && (
+                <ProjectChat projectId={projectId} currentUserId={user.id} />
+              )}
             </SidebarContent>
-
-            <SidebarFooter>
-              <Input
-                type="text"
-                placeholder="Type a message..."
-                className="text-sub-description font-source-sans"
-              />
-            </SidebarFooter>
           </Sidebar>
         </div>
       </div>
