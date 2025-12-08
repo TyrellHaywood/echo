@@ -73,9 +73,9 @@ export function TrackControl({
 
   return (
     <div
-      className={`bg-background/30 backdrop-blur-sm rounded-lg p-3 transition-all cursor-pointer ${
+      className={`bg-background/30 backdrop-blur-xl rounded-lg p-3 transition-all cursor-pointer ${
         isSelected 
-          ? 'ring-2 ring-primary' 
+          ? 'border-2 border-black/50' 
           : 'hover:bg-background/40'
       }`}
       onClick={onSelect}
@@ -122,7 +122,7 @@ export function TrackControl({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 hover:bg-white/15 hover:border-white/30"
           onClick={() => onMuteToggle(track.id)}
         >
           {!track.is_muted ? (
@@ -135,7 +135,7 @@ export function TrackControl({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 hover:bg-white/15 hover:border-white/30"
           onClick={() => onSoloToggle(track.id)}
         >
           <Headphones size={16} />
@@ -153,7 +153,7 @@ export function TrackControl({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-destructive hover:text-destructive"
+          className="h-8 w-8 hover:bg-white/15 hover:border-white/30 text-destructive hover:text-destructive"
           onClick={() => onDelete(track.id)}
         >
           <Trash2 size={14} />

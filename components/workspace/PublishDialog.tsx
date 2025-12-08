@@ -385,7 +385,7 @@ export default function PublishDialog({
       <DialogTrigger asChild>
         <Button 
             variant="default" 
-            className="bg-black text-white hover:bg-black/90 font-source-sans"
+            className="bg-[#9ECB45]/20 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-[#9ECB45]/40 text-white hover:bg-[#9ECB45]/25 hover:border-[#9ECB45]/50 font-source-sans"
             size="sm"
         >
           Publish

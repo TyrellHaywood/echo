@@ -8,6 +8,7 @@ import { Send } from 'lucide-react';
 import { useProjectMessages, sendProjectMessage } from '@/hooks/useProjectMessages';
 import { formatDate } from '@/utils/dataTransformer';
 import { toast } from 'sonner';
+import { hexToRgba } from '@/utils/badgeColors';
 
 interface ProjectChatProps {
   projectId: string;
@@ -58,7 +59,7 @@ export function ProjectChat({ projectId, currentUserId }: ProjectChatProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <LoadingSpinner size={32} />
+        <LoadingSpinner size={32} className="text-white" />
       </div>
     );
   }
@@ -77,7 +78,7 @@ export function ProjectChat({ projectId, currentUserId }: ProjectChatProps) {
       <div className="flex-1 overflow-auto p-4">
         <div className="flex flex-col gap-3">
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sub-description font-source-sans">
+            <div className="flex items-center justify-center h-full text-white/60 text-sub-description font-source-sans">
               No messages yet. Start the conversation!
             </div>
           ) : (
@@ -98,23 +99,30 @@ export function ProjectChat({ projectId, currentUserId }: ProjectChatProps) {
                         alt={message.sender?.name || 'User'}
                         className="w-5 h-5"
                       />
-                      <span className="text-metadata font-source-sans text-muted-foreground">
+                      <span className="text-metadata font-source-sans text-white/60">
                         {message.sender?.name || 'Unknown User'}
                       </span>
                     </div>
                   )}
                   <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
+                    className={`max-w-[80%] p-3 rounded-lg backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border text-white`}
+                    style={
                       isOwnMessage
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
+                        ? {
+                            backgroundColor: hexToRgba("#9ECB45", 0.15),
+                            borderColor: hexToRgba("#9ECB45", 0.3),
+                          }
+                        : {
+                            backgroundColor: "rgba(255, 255, 255, 0.1)",
+                            borderColor: "rgba(255, 255, 255, 0.1)",
+                          }
+                    }
                   >
                     <p className="text-sub-description font-source-sans whitespace-pre-wrap break-words">
                       {message.content}
                     </p>
                   </div>
-                  <span className="text-metadata font-source-sans text-muted-foreground uppercase px-2">
+                  <span className="text-metadata font-source-sans text-white/60 uppercase px-2">
                     {message.created_at && formatDate(message.created_at)}
                   </span>
                 </div>
@@ -126,14 +134,14 @@ export function ProjectChat({ projectId, currentUserId }: ProjectChatProps) {
       </div>
 
       {/* Input area */}
-      <div className="border-t border-border p-3">
+      <div className="border-t border-white/20 p-3">
         <div className="flex flex-row gap-2 items-end">
           <textarea
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            className="flex-1 min-h-[44px] max-h-[120px] p-2 rounded-lg bg-muted resize-none text-sub-description font-source-sans focus:outline-none focus:ring-2 focus:ring-ring"
+            className="flex-1 min-h-[44px] max-h-[120px] p-2 rounded-lg bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 resize-none text-sub-description font-source-sans text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
             rows={1}
             disabled={isSending}
           />
@@ -141,7 +149,7 @@ export function ProjectChat({ projectId, currentUserId }: ProjectChatProps) {
             onClick={handleSendMessage}
             disabled={!messageText.trim() || isSending}
             size="icon"
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            className="bg-white/20 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(255,255,255,0.1)] border border-white/30 text-white hover:bg-white/25 hover:border-white/40"
           >
             {isSending ? <LoadingSpinner size={20} /> : <Send size={20} />}
           </Button>
