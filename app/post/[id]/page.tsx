@@ -20,6 +20,7 @@ import {
 } from "@/utils/postInteractions";
 import type { PostWithInteractions } from "@/utils/postInteractions";
 import { useAudioPlayer, NativeAudioPlayer } from "@/utils/audioService";
+import { getBadgeColor, hexToRgba } from "@/utils/badgeColors";
 
 // Shadcn components
 import { Menubar, MenubarMenu } from "@/components/ui/menubar";
@@ -273,15 +274,22 @@ export default function PostPage() {
             </div>
             {/* meta tags */}
             <div className="mt-5 flex flex-row flex-wrap gap-2 items-center">
-              {post?.types?.map((type, index) => (
-                <Badge
-                  key={index}
-                  variant="outline"
-                  className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border-white/20 !text-white sm:px-5 sm:py-1 text-description font-source-sans"
-                >
-                  {type}
-                </Badge>
-              ))}
+                {post?.types?.map((type, index) => {
+                  const bgColor = getBadgeColor(type);
+                  return (
+                    <Badge
+                      key={index}
+                      variant="outline"
+                      className="backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border-white/20 !text-white sm:px-5 sm:py-1 text-description font-source-sans"
+                      style={{
+                        backgroundColor: hexToRgba(bgColor, 0.15),
+                        borderColor: hexToRgba(bgColor, 0.3),
+                      }}
+                    >
+                      {type}
+                    </Badge>
+                  );
+                })}
             </div>
             <Separator className="my-9 bg-white/20" />
             {/* Toggle between description and comments */}

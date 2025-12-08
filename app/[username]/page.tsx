@@ -20,6 +20,8 @@ import { Pencil, X, Check, XCircle } from "lucide-react";
 // Custom components
 import Toolbar from "@/components/Toolbar";
 import ProfileSkeleton from "@/components/profile/ProfileSkeleton";
+import { getBadgeColor, hexToRgba } from "@/utils/badgeColors";
+
 
 interface ProfilePageProps {
   params: Promise<{
@@ -331,12 +333,18 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           )}
 
           <div className="flex flex-row flex-wrap gap-2 pl-4">
-            {(isEditing ? editedProfile?.interests : profile?.interests)?.map(
-              (interest, index) => (
+          {(isEditing ? editedProfile?.interests : profile?.interests)?.map(
+            (interest, index) => {
+              const bgColor = getBadgeColor(interest);
+              return (
                 <Badge
                   key={index}
-                  className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border-white/20 text-white"
+                  className="backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] text-white"
                   variant={"outline"}
+                  style={{
+                    backgroundColor: hexToRgba(bgColor, 0.15),
+                    borderColor: hexToRgba(bgColor, 0.3),
+                  }}
                 >
                   {interest}
                   {isEditing && (
@@ -350,9 +358,10 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     </Button>
                   )}
                 </Badge>
-              )
-            )}
-          </div>
+              );
+            }
+          )}
+        </div>
         </div>
       </div>
     </div>
