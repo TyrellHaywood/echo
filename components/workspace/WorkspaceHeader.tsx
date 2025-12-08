@@ -35,6 +35,7 @@ interface WorkspaceHeaderProps {
   getCurrentBar: () => number;
   getCurrentBeat: () => number;
   hasSelectedTrack: boolean;
+  publishButton?: React.ReactNode;
 }
 
 export function WorkspaceHeader({
@@ -55,6 +56,7 @@ export function WorkspaceHeader({
   getCurrentBar,
   getCurrentBeat,
   hasSelectedTrack,
+  publishButton,
 }: WorkspaceHeaderProps) {
   return (
     <div className="w-full bg-background px-4 py-3 flex flex-row justify-between items-end z-50">
@@ -63,14 +65,7 @@ export function WorkspaceHeader({
         <Button variant="outline" size="icon" onClick={onNavigateHome}>
           <Home size={20} />
         </Button>
-
-        <Button
-          className="bg-black text-white hover:bg-black/90 font-source-sans"
-          size="sm"
-          onClick={onPublish}
-        >
-          Publish
-        </Button>
+        {publishButton && <div>{publishButton}</div>}
       </div>
 
       {/* Center section - Transport controls */}
@@ -170,6 +165,7 @@ export function WorkspaceHeader({
               <Plus />
             </Button>
           </div>
+          
           <Button size="icon" variant="outline" onClick={onToggleChat}>
             <PanelRight />
           </Button>

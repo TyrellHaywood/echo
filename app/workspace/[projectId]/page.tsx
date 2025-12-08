@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { TrackWaveform } from "@/components/workspace/TrackWaveform";
 import { TrackControl } from "@/components/workspace/TrackControl";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
+import PublishDialog from '@/components/workspace/PublishDialog';
 import { toast } from "sonner";
 import { MessageSquare, Plus } from "lucide-react";
 
@@ -29,7 +30,7 @@ export default function WorkspacePage() {
   const router = useRouter();
   const params = useParams();
   const { user } = useAuth();
-  const projectId = params?.projectId as string | undefined;
+  const projectId = params?.projectId as string;
 
   // Project state
   const [project, setProject] = useState<CollaborativeProject | null>(null);
@@ -448,6 +449,13 @@ export default function WorkspacePage() {
           getCurrentBar={getCurrentBar}
           getCurrentBeat={getCurrentBeat}
           hasSelectedTrack={!!selectedTrackId}
+          publishButton={
+            <PublishDialog
+              projectId={projectId}
+              tracks={tracks}
+              projectTitle="Project"
+            />
+          }
         />
 
         {/* Main workspace area */}
