@@ -29,6 +29,7 @@ interface MultiTrackControls {
   setTrackPan: (trackId: string, pan: number) => void;
   toggleTrackMute: (trackId: string) => void;
   toggleTrackSolo: (trackId: string) => void;
+  reload: () => Promise<void>;
 }
 
 export function useMultiTrackPlayer(
@@ -49,9 +50,16 @@ export function useMultiTrackPlayer(
   const panNodesRef = useRef<Map<string, StereoPannerNode>>(new Map());
   const soloedTracksRef = useRef<Set<string>>(new Set());
   const animationFrameRef = useRef<number | null>(null);
+  const isLoadingRef = useRef<boolean>(false); 
+  const isCleaningUpRef = useRef<boolean>(false);
 
   const loadTracks = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId || isLoadingRef.current || isCleaningUpRef.current) {
+      console.log('Skipping loadTracks - already loading or cleaning up');
+      return;
+    }
+
+    isLoadingRef.current = true;
 
     try {
       const { data: tracks, error } = await supabase
@@ -63,81 +71,145 @@ export function useMultiTrackPlayer(
       if (error) {
         console.error('Error loading tracks:', error);
         setState(prev => ({ ...prev, error: 'Failed to load tracks' }));
+        isLoadingRef.current = false;
         return;
       }
 
       if (!tracks || tracks.length === 0) {
         setState(prev => ({ ...prev, duration: 0 }));
+        isLoadingRef.current = false;
         return;
       }
 
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Filter out tracks without audio URLs
+      const tracksWithAudio = tracks.filter(t => t.audio_url && t.audio_url.trim() !== '');
+      
+      if (tracksWithAudio.length === 0) {
+        console.log('No tracks with audio to load');
+        setState(prev => ({ ...prev, duration: 0, tracks: new Map() }));
+        isLoadingRef.current = false;
+        return;
       }
 
+      // Ensure audio context is properly closed before creating a new one
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        console.log('Closing existing audio context...');
+        await audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+
+      // Wait a bit to ensure context is fully closed
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Create fresh audio context
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      console.log('Created new audio context:', audioContextRef.current.state);
+
+      const audioContext = audioContextRef.current;
       const newTracksMap = new Map<string, TrackState>();
       let maxDuration = 0;
+      let loadedCount = 0;
 
-      for (const track of tracks) {
-        if (!track.audio_url) continue;
+      // Create promises for all tracks
+      const trackPromises = tracksWithAudio.map((track) => {
+        return new Promise<void>((resolve) => {
+          const audio = new Audio();
+          audio.crossOrigin = 'anonymous';
+          audio.preload = 'metadata';
 
-        const audio = new Audio();
-        audio.crossOrigin = 'anonymous';
-        audio.preload = 'auto';
+          const trackState: TrackState = {
+            id: track.id,
+            audio,
+            isLoaded: false,
+            error: null,
+          };
 
-        const trackState: TrackState = {
-          id: track.id,
-          audio,
-          isLoaded: false,
-          error: null,
-        };
+          // Set up Web Audio API connections FIRST
+          try {
+            const source = audioContext.createMediaElementSource(audio);
+            
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = track.volume ?? 1.0;
+            gainNodesRef.current.set(track.id, gainNode);
 
-        audio.addEventListener('loadedmetadata', () => {
-          trackState.isLoaded = true;
-          if (audio.duration > maxDuration) {
-            maxDuration = audio.duration;
-            setState(prev => ({ ...prev, duration: maxDuration }));
+            const panNode = audioContext.createStereoPanner();
+            panNode.pan.value = track.pan ?? 0;
+            panNodesRef.current.set(track.id, panNode);
+
+            source.connect(gainNode).connect(panNode).connect(audioContext.destination);
+          } catch (err) {
+            console.error(`Error setting up audio nodes for track ${track.id}:`, err);
+            trackState.error = 'Failed to setup audio';
+            newTracksMap.set(track.id, trackState);
+            resolve();
+            return;
           }
 
-          newTracksMap.set(track.id, { ...trackState });
-          tracksRef.current = newTracksMap;
-          setState(prev => ({ ...prev, tracks: new Map(newTracksMap) }));
+          // Event listeners
+          const onLoadedMetadata = () => {
+            console.log(`Track ${track.id} loaded, duration:`, audio.duration);
+            trackState.isLoaded = true;
+            
+            let duration = audio.duration;
+            if (!isFinite(duration)) {
+              duration = track.duration || 0;
+              console.log(`Using database duration for track ${track.id}:`, duration);
+            }
+            
+            if (duration > maxDuration) {
+              maxDuration = duration;
+            }
+
+            loadedCount++;
+            newTracksMap.set(track.id, { ...trackState });
+            
+            // Update state after each track loads
+            tracksRef.current = new Map(newTracksMap);
+            setState(prev => ({ 
+              ...prev, 
+              tracks: new Map(newTracksMap),
+              duration: maxDuration
+            }));
+            
+            resolve();
+          };
+
+          const onError = (e: Event) => {
+            console.error(`Error loading track ${track.id}:`, e, audio.error);
+            trackState.error = 'Failed to load audio';
+            newTracksMap.set(track.id, { ...trackState });
+            
+            tracksRef.current = new Map(newTracksMap);
+            setState(prev => ({ ...prev, tracks: new Map(newTracksMap) }));
+            
+            resolve(); // Resolve anyway to not block other tracks
+          };
+
+          audio.addEventListener('loadedmetadata', onLoadedMetadata);
+          audio.addEventListener('error', onError);
+
+          // Now set src and load
+          newTracksMap.set(track.id, trackState);
+          audio.src = track.audio_url;
+          audio.load();
         });
+      });
 
-        audio.addEventListener('error', (e) => {
-          console.error(`Error loading track ${track.id}:`, e);
-          trackState.error = 'Failed to load audio';
-          newTracksMap.set(track.id, { ...trackState });
-          setState(prev => ({ ...prev, tracks: new Map(newTracksMap) }));
-        });
+      // Wait for all tracks to attempt loading (with timeout)
+      await Promise.race([
+        Promise.all(trackPromises),
+        new Promise(resolve => setTimeout(resolve, 5000)) // 5 second timeout
+      ]);
 
-        const audioContext = audioContextRef.current;
-        const source = audioContext.createMediaElementSource(audio);
-        
-        const gainNode = audioContext.createGain();
-        gainNode.gain.value = track.volume ?? 1.0;
-        gainNodesRef.current.set(track.id, gainNode);
-
-        const panNode = audioContext.createStereoPanner();
-        panNode.pan.value = track.pan ?? 0;
-        panNodesRef.current.set(track.id, panNode);
-
-        source.connect(gainNode).connect(panNode).connect(audioContext.destination);
-
-        audio.src = track.audio_url;
-        audio.load();
-
-        newTracksMap.set(track.id, trackState);
-      }
-
-      tracksRef.current = newTracksMap;
-      setState(prev => ({ ...prev, tracks: new Map(newTracksMap) }));
+      console.log(`Loaded ${loadedCount} of ${tracksWithAudio.length} tracks`);
     } catch (err) {
       console.error('Error in loadTracks:', err);
       setState(prev => ({ 
         ...prev, 
         error: err instanceof Error ? err.message : 'Unknown error loading tracks' 
       }));
+    } finally {
+      isLoadingRef.current = false;
     }
   }, [projectId]);
 
@@ -145,23 +217,36 @@ export function useMultiTrackPlayer(
     loadTracks();
 
     return () => {
+      isCleaningUpRef.current = true;
+      
+      // Stop playback first
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+
+      // Pause and clean up all audio elements
       tracksRef.current.forEach((trackState) => {
         if (trackState.audio) {
           trackState.audio.pause();
+          trackState.audio.removeEventListener('loadedmetadata', () => {});
+          trackState.audio.removeEventListener('error', () => {});
           trackState.audio.src = '';
+          trackState.audio.load(); // Clear the audio element
         }
       });
       tracksRef.current.clear();
       gainNodesRef.current.clear();
       panNodesRef.current.clear();
       
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      // Close audio context asynchronously
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().then(() => {
+          audioContextRef.current = null;
+          isCleaningUpRef.current = false;
+        });
+      } else {
+        isCleaningUpRef.current = false;
       }
     };
   }, [loadTracks]);
@@ -178,14 +263,22 @@ export function useMultiTrackPlayer(
     play: async () => {
       const allTracks = Array.from(tracksRef.current.values());
       
-      if (allTracks.length === 0 || !allTracks.every(t => t.isLoaded)) {
-        console.warn('Not all tracks are loaded');
+      if (allTracks.length === 0) {
+        console.warn('No tracks to play');
+        return;
+      }
+
+      const loadedTracks = allTracks.filter(t => t.isLoaded && !t.error);
+      
+      if (loadedTracks.length === 0) {
+        console.warn('No loaded tracks available');
+        console.log('Track states:', allTracks.map(t => ({ id: t.id, isLoaded: t.isLoaded, error: t.error })));
         return;
       }
 
       try {
         await Promise.all(
-          allTracks.map(trackState => {
+          loadedTracks.map(trackState => {
             if (trackState.audio) {
               return trackState.audio.play();
             }
@@ -310,6 +403,27 @@ export function useMultiTrackPlayer(
           }
         }
       });
+    },
+
+    reload: async () => {
+      // Clean up existing tracks
+      tracksRef.current.forEach((trackState) => {
+        if (trackState.audio) {
+          trackState.audio.pause();
+          trackState.audio.src = '';
+        }
+      });
+      tracksRef.current.clear();
+      gainNodesRef.current.clear();
+      panNodesRef.current.clear();
+      
+      if (audioContextRef.current) {
+        await audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+
+      // Reload tracks
+      await loadTracks();
     },
   };
 
