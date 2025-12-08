@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/ui/logo";
-import MetaGraph from "@/components/metaGraph/MetaGraph";
+import MetaGraphV2 from "@/components/metaGraph/MetaGraphV2";
 import Toolbar from "@/components/Toolbar";
 import CursorMask from "@/components/CursorMask";
 
@@ -38,7 +38,7 @@ export default function Home() {
       <CursorMask isVisible={showCursor} />
       
       {/* Main page elements */}
-      <MetaGraph />
+      <MetaGraphV2 />
 
       {/* Top menu */}
       <div className="absolute top-0 left-0 w-full z-20">

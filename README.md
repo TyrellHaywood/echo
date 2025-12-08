@@ -1,3 +1,3 @@
 # Echo
 
-A digital sound archive
+![3cho.vercel.app](/public/waitlist.png)
