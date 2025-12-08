@@ -1,0 +1,13 @@
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32.76 46.41" width="10.92" height="15.47">
+  <defs>
+    <style>      
+        .cls-1 {
+        fill: #FFFFFF;
+        stroke: #000000;
+        stroke-linecap: square;
+        stroke-width: 2px;
+      }</style>
+  </defs>
+  <title>cursor</title>
+  <polygon class="cls-1" points="0.5 42.61 0.5 1.21 31.55 32.26 13.44 32.26 0.5 45.2 0.5 42.61"/>
+</svg>
