@@ -36,6 +36,7 @@ interface WorkspaceHeaderProps {
   getCurrentBeat: () => number;
   hasSelectedTrack: boolean;
   publishButton?: React.ReactNode;
+  onlineCollaborators?: { userId: string; name: string | null; avatarUrl: string | null }[];
 }
 
 export function WorkspaceHeader({
@@ -57,6 +58,7 @@ export function WorkspaceHeader({
   getCurrentBeat,
   hasSelectedTrack,
   publishButton,
+  onlineCollaborators,
 }: WorkspaceHeaderProps) {
   return (
     <div className="w-full bg-background px-4 py-3 flex flex-row justify-between items-end z-50">
@@ -151,20 +153,29 @@ export function WorkspaceHeader({
           {project.title}
         </span>
         <div className="flex flex-row gap-8 items-center">
-          {/* Collaborator avatars */}
-          <div className="flex flex-row gap-4 items-center">
-            {project.post_authors.map((author) => (
-              <Avatar
-                key={author.user_id}
-                src={author.profiles?.avatar_url ?? undefined}
-                alt={author.profiles?.name || "User"}
-                className="w-8 h-8"
-              />
-            ))}
-            <Button size="icon" variant="outline" className="rounded-full">
-              <Plus />
-            </Button>
-          </div>
+        {/* Collaborator avatars */}
+        <div className="flex flex-row gap-4 items-center">
+          {project.post_authors.map((author) => {
+            const isOnline = onlineCollaborators?.some(
+              (user) => user.userId === author.user_id
+            );
+            return (
+              <div key={author.user_id} className="relative">
+                <Avatar
+                  src={author.profiles?.avatar_url ?? undefined}
+                  alt={author.profiles?.name || "User"}
+                  className="w-8 h-8"
+                />
+                {isOnline && (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
+                )}
+              </div>
+            );
+          })}
+          <Button size="icon" variant="outline" className="rounded-full">
+            <Plus />
+          </Button>
+        </div>
           
           <Button size="icon" variant="outline" onClick={onToggleChat}>
             <PanelRight />

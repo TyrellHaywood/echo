@@ -24,6 +24,8 @@ import { TrackControl } from "@/components/workspace/TrackControl";
 import { WorkspaceHeader } from "@/components/workspace/WorkspaceHeader";
 import PublishDialog from '@/components/workspace/PublishDialog';
 import { ProjectChat } from '@/components/workspace/ProjectChat';
+import { usePresence } from '@/hooks/usePresence';
+import { useRealtimeTrackUpdates } from '@/hooks/useRealtimeTrackUpdates';
 import { toast } from "sonner";
 import { MessageSquare, Plus } from "lucide-react";
 
@@ -63,6 +65,41 @@ export default function WorkspacePage() {
   const trackColors = [
     "#e09145", "#46b1c9", "#e17878", "#7ba05b", "#9b72b0", "#d4a259",
   ];
+
+  // Real-time presence
+  const { onlineUsers } = usePresence(projectId, user?.id || null);
+
+  // Real-time track updates
+  useRealtimeTrackUpdates(projectId, async () => {
+    // Reload tracks when any collaborator makes changes
+    if (!projectId) return;
+    
+    const { data, error } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('post_id', projectId)
+      .order('track_number', { ascending: true });
+
+    if (error) {
+      console.error('Error reloading tracks:', error);
+      return;
+    }
+
+    if (data) {
+      const userIds = [...new Set(data.map(t => t.user_id))].filter((id): id is string => id !== null);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .in('id', userIds);
+
+      const tracksWithProfiles = data.map(track => ({
+        ...track,
+        profiles: profiles?.find(p => p.id === track.user_id) || null
+      }));
+
+      setTracks(tracksWithProfiles);
+    }
+  });
 
   // Load project
   useEffect(() => {
@@ -450,6 +487,7 @@ export default function WorkspacePage() {
           getCurrentBar={getCurrentBar}
           getCurrentBeat={getCurrentBeat}
           hasSelectedTrack={!!selectedTrackId}
+          onlineCollaborators={onlineUsers}
           publishButton={
             <PublishDialog
               projectId={projectId}
