@@ -497,8 +497,6 @@ function MetaGraphInner() {
           type: "smoothstep",
         }}
       >
-        {/* No Background component = no dots */}
-        <Controls className="bg-white/10 border-white/20" />
       </ReactFlow>
 
       {nodes.length === 0 && !loading && (
@@ -506,11 +504,6 @@ function MetaGraphInner() {
           <div className="text-lg text-white">No posts available.</div>
         </div>
       )}
-      
-      {/* Debug info - remove after confirming edges work */}
-      <div className="absolute top-4 left-4 text-white/50 text-xs pointer-events-none">
-        Nodes: {nodes.length} | Edges: {edges.length}
-      </div>
     </div>
   );
 }
