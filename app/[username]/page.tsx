@@ -200,7 +200,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   }
 
   return (
-    <>
+    <div className="relative w-full min-h-screen bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
       <Toolbar />
 
       {/* Edit/Save/Cancel buttons - only show for own profile */}
@@ -209,7 +209,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           {!isEditing ? (
             <Button
               variant="outline"
-              className="flex flex-row gap-1 bg-background/50 backdrop-blur-md shadow-inner"
+              className="flex flex-row gap-1 bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
               onClick={startEdit}
             >
               Edit
@@ -225,7 +225,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               </Button>
               <Button
                 variant="outline"
-                className="flex flex-row gap-1 bg-background/50 backdrop-blur-md shadow-inner"
+                className="flex flex-row gap-1 bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white hover:bg-white/15 hover:border-white/30"
                 onClick={cancelEdit}
               >
                 Cancel
@@ -248,7 +248,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           </div>
         ) : (
           <div className="">
-            <span className="">No avatar</span>
+            <span className="text-white/60">No avatar</span>
           </div>
         )}
 
@@ -257,12 +257,11 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           <Input
             value={editedProfile?.username || ""}
             onChange={(e) => handleInputChange("username", e.target.value)}
-            className="text-sub-title font-plex-serif text-left w-full max-w-80 mb-2"
+            className="text-sub-title font-plex-serif text-left w-full max-w-80 mb-2 bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/30"
             placeholder="Username"
           />
         ) : (
-          <h1 className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4">
-            {profile?.username}
+          <h1 className="text-sub-title font-plex-serif text-left w-full max-w-80 pl-4 text-white">            {profile?.username}
           </h1>
         )}
 
@@ -272,23 +271,23 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             <Input
               value={editedProfile?.name || ""}
               onChange={(e) => handleInputChange("name", e.target.value)}
-              className="text-sub-description font-source-sans"
+              className="text-sub-description font-source-sans bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/30"
               placeholder="Display Name"
             />
             <Input
               value={editedProfile?.pronouns || ""}
               onChange={(e) => handleInputChange("pronouns", e.target.value)}
-              className="text-sub-description font-source-sans"
+              className="text-sub-description font-source-sans bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/30"
               placeholder="Pronouns"
             />
           </div>
         ) : (
-          <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mb-1">
-            <span className="text-sub-description font-source-sans">
+          <div className="flex flex-row gap-2 w-full max-w-80 pl-4 mb-1 text-white/80">
+            <span className="text-sub-description font-source-sans text-white/80">
               {profile?.name || "Name"}
             </span>
             •
-            <span className="text-sub-description font-source-sans">
+            <span className="text-sub-description font-source-sans text-white/80">
               {profile?.pronouns || "Pronouns"}
             </span>
           </div>
@@ -299,11 +298,11 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           <Textarea
             value={editedProfile?.bio || ""}
             onChange={(e) => handleInputChange("bio", e.target.value)}
-            className="font-source-sans w-full max-w-80 mb-2 min-h-[100px]"
+            className="font-source-sans w-full max-w-80 mb-2 min-h-[100px] bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/30"
             placeholder="Tell us about yourself..."
           />
         ) : (
-          <p className="text-description font-source-sans w-full max-w-80 pl-4">
+          <p className="text-description font-source-sans w-full max-w-80 pl-4 text-white/80">
             {profile?.bio || "No bio yet"}
           </p>
         )}
@@ -315,6 +314,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               <Input
                 type="text"
                 placeholder="Add interest"
+                className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border border-white/20 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/30"
                 value={currentInterest}
                 onChange={(e) => setCurrentInterest(e.target.value)}
                 onKeyDown={(e) => {
@@ -324,7 +324,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                   }
                 }}
               />
-              <Button type="button" onClick={addInterest} size="sm">
+              <Button type="button" onClick={addInterest} size="sm" className="bg-white/20 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(255,255,255,0.1)] border border-white/30 text-white hover:bg-white/25 hover:border-white/40">
                 Add
               </Button>
             </div>
@@ -335,7 +335,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               (interest, index) => (
                 <Badge
                   key={index}
-                  className="bg-background/50 backdrop-blur-md shadow-inner"
+                  className="bg-white/10 backdrop-blur-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] border-white/20 text-white"
                   variant={"outline"}
                 >
                   {interest}
@@ -344,7 +344,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                       onClick={() => removeInterest(interest)}
                       size="icon"
                       variant="ghost"
-                      className="ml-1 py-0 px-1 w-auto h-auto hover:bg-transparent text-muted-foreground hover:text-foreground"
+                      className="ml-1 py-0 px-1 w-auto h-auto hover:bg-transparent text-white/60 hover:text-white"
                     >
                       <X className="" />
                     </Button>
@@ -355,6 +355,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
