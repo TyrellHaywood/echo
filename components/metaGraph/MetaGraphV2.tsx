@@ -5,15 +5,23 @@ import { useRouter } from "next/navigation";
 import ReactFlow, {
   Node,
   Edge,
-  Background,
   Controls,
   useNodesState,
   useEdgesState,
   NodeProps,
   useReactFlow,
+  ReactFlowProvider,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from "d3-force";
+import {
+  forceSimulation,
+  forceLink,
+  forceManyBody,
+  forceCenter,
+  forceCollide,
+  SimulationNodeDatum,
+  SimulationLinkDatum,
+} from "d3-force";
 
 // Utils
 import {
@@ -29,9 +37,22 @@ import { getBadgeColor, hexToRgba } from "@/utils/badgeColors";
 // UI Components
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Badge } from "@/components/ui/badge";
-import { Avatar } from "@/components/ui/avatar";
 import { Play, Pause } from "lucide-react";
 import GraphSkeleton from "./GraphSkeleton";
+
+// Types for d3-force simulation
+interface SimNode extends SimulationNodeDatum {
+  id: string;
+  x: number;
+  y: number;
+  vx?: number;
+  vy?: number;
+}
+
+interface SimLink extends SimulationLinkDatum<SimNode> {
+  source: string | SimNode;
+  target: string | SimNode;
+}
 
 // Custom Node Component
 function PostNode({ data, selected }: NodeProps) {
@@ -42,7 +63,6 @@ function PostNode({ data, selected }: NodeProps) {
   const [postDetails, setPostDetails] = useState<any>(null);
   const [loadingAudio, setLoadingAudio] = useState(false);
 
-  // Sync selected state from parent
   const isSelected = selected || false;
 
   // Load full post details when selected
@@ -50,7 +70,6 @@ function PostNode({ data, selected }: NodeProps) {
     const loadDetails = async () => {
       if (!isSelected) {
         setPostDetails(null);
-        // Stop audio when deselected
         if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
@@ -135,10 +154,10 @@ function PostNode({ data, selected }: NodeProps) {
       <div className="relative">
         <div
           className={`w-32 h-32 rounded-lg overflow-hidden cursor-pointer transition-all ${
-            isSelected 
-              ? "shadow-[0_0_20px_rgba(158,203,69,0.5)]" 
-              : isHovered 
-              ? "shadow-[0_0_20px_rgba(255,255,255,0.3)]" 
+            isSelected
+              ? "shadow-[0_0_20px_rgba(158,203,69,0.5)]"
+              : isHovered
+              ? "shadow-[0_0_20px_rgba(255,255,255,0.3)]"
               : "shadow-lg"
           }`}
         >
@@ -167,9 +186,9 @@ function PostNode({ data, selected }: NodeProps) {
             {loadingAudio ? (
               <LoadingSpinner size={40} className="text-white" />
             ) : isPlaying ? (
-              <Pause className="w-8 h-8 text-white" fill="white" />
+              <Pause className="w-12 h-12 text-white" fill="white" />
             ) : (
-              <Play className="w-8 h-8 text-white ml-1" fill="white" />
+              <Play className="w-12 h-12 text-white ml-1" fill="white" />
             )}
           </button>
         )}
@@ -187,7 +206,7 @@ function PostNode({ data, selected }: NodeProps) {
 
           {/* Badges */}
           {data.types && data.types.length > 0 && (
-            <div className="flex gap-1.5 justify-center max-w-xs">
+            <div className="flex flex-wrap gap-1.5 justify-center max-w-xs">
               {data.types.map((type: string) => {
                 const color = getBadgeColor(type);
                 return (
@@ -228,15 +247,20 @@ const nodeTypes = {
   post: PostNode,
 };
 
-export default function MetaGraphV2() {
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [availableTypes, setAvailableTypes] = useState<string[]>([]);
-  const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
+function MetaGraphInner() {
+  const [graphData, setGraphData] = useState<GraphData>({
+    nodes: [],
+    links: [],
+  });
   const [loading, setLoading] = useState(true);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [profileMap, setProfileMap] = useState<Map<string, any>>(new Map());
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const simulationRef = useRef<any>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Load posts data
   useEffect(() => {
@@ -247,9 +271,23 @@ export default function MetaGraphV2() {
         const transformedData = transformPostsToGraphData(posts);
         const types = extractTypesFromPosts(posts);
 
+        // Load author profiles
+        const { supabase } = await import("@/utils/supabase");
+        const userIds = [
+          ...new Set(transformedData.nodes.map((node) => node.metadata.userId)),
+        ].filter((id): id is string => typeof id === "string");
+
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, name, avatar_url")
+          .in("id", userIds);
+
+        setProfileMap(new Map(profiles?.map((p) => [p.id, p]) || []));
         setGraphData(transformedData);
-        setAvailableTypes(types);
-        setSelectedTypes(types);
+        
+        // Debug: log links to verify they exist
+        console.log("Graph links:", transformedData.links);
+        console.log("Number of links:", transformedData.links.length);
       } catch (error) {
         console.error("Error loading posts:", error);
       } finally {
@@ -260,58 +298,55 @@ export default function MetaGraphV2() {
     loadData();
   }, []);
 
-  // Apply force-directed layout and load author data
+  // Store simulation nodes in a ref so we can access positions without re-running simulation
+  const simNodesRef = useRef<SimNode[]>([]);
+
+  // Initialize and run force simulation - only when graph data changes
   useEffect(() => {
     if (graphData.nodes.length === 0) return;
 
-    const loadNodesWithAuthors = async () => {
-      const { supabase } = await import("@/utils/supabase");
-      
-      // Get all unique user IDs
-      const userIds = [...new Set(graphData.nodes.map(node => node.metadata.userId))].filter((id): id is string => typeof id === "string");
-      
-      // Fetch all authors at once
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, name, avatar_url')
-        .in('id', userIds);
+    // Create simulation nodes with initial random positions
+    const simNodes: SimNode[] = graphData.nodes.map((node) => ({
+      id: node.id,
+      x: Math.random() * 800 - 400,
+      y: Math.random() * 600 - 300,
+    }));
 
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    simNodesRef.current = simNodes;
 
-      // Convert to d3-force format
-      const simulationNodes = graphData.nodes.map((node) => ({
-        id: node.id,
-        x: Math.random() * 800,
-        y: Math.random() * 600,
-      }));
+    // Create simulation links from parent-child relationships
+    const simLinks: SimLink[] = graphData.links.map((link) => ({
+      source:
+        typeof link.source === "object" ? (link.source as any).id : link.source,
+      target:
+        typeof link.target === "object" ? (link.target as any).id : link.target,
+    }));
 
-      const simulationLinks = graphData.links.map((link) => ({
-        source: typeof link.source === "object" ? link.source.id : link.source,
-        target: typeof link.target === "object" ? link.target.id : link.target,
-      }));
+    // Create the simulation
+    const simulation = forceSimulation<SimNode>(simNodes)
+      .force(
+        "link",
+        forceLink<SimNode, SimLink>(simLinks)
+          .id((d) => d.id)
+          .distance(200)
+          .strength(0.5)
+      )
+      .force("charge", forceManyBody().strength(-300))
+      .force("center", forceCenter(0, 0))
+      .force("collide", forceCollide(80))
+      .alphaDecay(0.02)
+      .velocityDecay(0.3);
 
-      // Run force simulation
-      const simulation = forceSimulation(simulationNodes as any)
-        .force(
-          "link",
-          forceLink(simulationLinks)
-            .id((d: any) => d.id)
-            .distance(180)
-        )
-        .force("charge", forceManyBody().strength(-400))
-        .force("center", forceCenter(400, 300))
-        .force("collide", forceCollide(80));
+    simulationRef.current = simulation;
 
-      // Run simulation to converge
-      for (let i = 0; i < 300; i++) {
-        simulation.tick();
-      }
-
-      // Convert to React Flow nodes
+    // Update React Flow nodes on each tick
+    const updateNodes = () => {
       const flowNodes: Node[] = graphData.nodes.map((node) => {
-        const simNode = simulationNodes.find((n) => n.id === node.id);
-        const profile = node.metadata.userId ? profileMap.get(node.metadata.userId) : null;
-        
+        const simNode = simNodes.find((n) => n.id === node.id);
+        const profile = node.metadata.userId
+          ? profileMap.get(node.metadata.userId)
+          : null;
+
         return {
           id: node.id,
           type: "post",
@@ -328,27 +363,105 @@ export default function MetaGraphV2() {
             authorAvatar: profile?.avatar_url || null,
           },
           draggable: true,
-          selected: false,
         };
       });
 
-      // Convert to React Flow edges
-      const flowEdges: Edge[] = graphData.links.map((link, index) => ({
-        id: `e-${index}`,
-        source: typeof link.source === "object" ? link.source.id : link.source,
-        target: typeof link.target === "object" ? link.target.id : link.target,
-        style: { stroke: "rgba(100, 100, 100, 0.6)", strokeWidth: 2 },
-        type: "straight",
-      }));
+      // Create edges for parent-child relationships
+      const flowEdges: Edge[] = graphData.links.map((link) => {
+        const sourceId =
+          typeof link.source === "object"
+            ? (link.source as any).id
+            : link.source;
+        const targetId =
+          typeof link.target === "object"
+            ? (link.target as any).id
+            : link.target;
+
+        return {
+          id: `edge-${sourceId}-${targetId}`,
+          source: sourceId,
+          target: targetId,
+          style: {
+            stroke: "#9ECB45",
+            strokeWidth: 2,
+            opacity: 0.6,
+          },
+          type: "smoothstep",
+          animated: false,
+          zIndex: 0,
+        };
+      });
+      
+      console.log("Flow edges being set:", flowEdges);
 
       setNodes(flowNodes);
       setEdges(flowEdges);
     };
 
-    loadNodesWithAuthors();
-  }, [graphData, setNodes, setEdges]);
+    // Run animation loop
+    const tick = () => {
+      if (simulation.alpha() > 0.01) {
+        updateNodes();
+        animationFrameRef.current = requestAnimationFrame(tick);
+      } else {
+        updateNodes(); // Final update
+      }
+    };
 
-  // Update node selection state when selectedNodeId changes
+    tick();
+
+    return () => {
+      simulation.stop();
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [graphData, profileMap, setNodes, setEdges]);
+
+  // Handle node drag - update simulation
+  const onNodeDrag = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (simulationRef.current) {
+        const simNode = simulationRef.current
+          .nodes()
+          .find((n: SimNode) => n.id === node.id);
+        if (simNode) {
+          simNode.fx = node.position.x;
+          simNode.fy = node.position.y;
+          simulationRef.current.alpha(0.3).restart();
+        }
+      }
+    },
+    []
+  );
+
+  const onNodeDragStop = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (simulationRef.current) {
+        const simNode = simulationRef.current
+          .nodes()
+          .find((n: SimNode) => n.id === node.id);
+        if (simNode) {
+          // Release the node so it can move freely again
+          simNode.fx = null;
+          simNode.fy = null;
+        }
+      }
+    },
+    []
+  );
+
+  // Handle node click
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
+  }, []);
+
+  // Handle pane click
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+  }, []);
+
+  // Update selection state
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) => ({
@@ -357,16 +470,6 @@ export default function MetaGraphV2() {
       }))
     );
   }, [selectedNodeId, setNodes]);
-
-  // Handle node click
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
-  }, []);
-
-  // Handle pane click (clicking on background)
-  const onPaneClick = useCallback(() => {
-    setSelectedNodeId(null);
-  }, []);
 
   if (loading) {
     return <GraphSkeleton />;
@@ -380,6 +483,8 @@ export default function MetaGraphV2() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onNodeDrag={onNodeDrag}
+        onNodeDragStop={onNodeDragStop}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
@@ -387,8 +492,13 @@ export default function MetaGraphV2() {
         maxZoom={2}
         className="bg-transparent"
         proOptions={{ hideAttribution: true }}
+        defaultEdgeOptions={{
+          style: { stroke: "#9ECB45", strokeWidth: 2 },
+          type: "smoothstep",
+        }}
       >
-        <Background color="#444" gap={16} />
+        {/* No Background component = no dots */}
+        <Controls className="bg-white/10 border-white/20" />
       </ReactFlow>
 
       {nodes.length === 0 && !loading && (
@@ -396,6 +506,20 @@ export default function MetaGraphV2() {
           <div className="text-lg text-white">No posts available.</div>
         </div>
       )}
+      
+      {/* Debug info - remove after confirming edges work */}
+      <div className="absolute top-4 left-4 text-white/50 text-xs pointer-events-none">
+        Nodes: {nodes.length} | Edges: {edges.length}
+      </div>
     </div>
+  );
+}
+
+// Wrap with ReactFlowProvider for hooks to work
+export default function MetaGraphV2() {
+  return (
+    <ReactFlowProvider>
+      <MetaGraphInner />
+    </ReactFlowProvider>
   );
 }
