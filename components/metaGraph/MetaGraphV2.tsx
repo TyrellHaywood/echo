@@ -186,9 +186,9 @@ function PostNode({ data, selected }: NodeProps) {
             {loadingAudio ? (
               <LoadingSpinner size={40} className="text-white" />
             ) : isPlaying ? (
-              <Pause className="w-12 h-12 text-white" fill="white" />
+              <Pause className="w-8 h-8 text-white" fill="white" />
             ) : (
-              <Play className="w-12 h-12 text-white ml-1" fill="white" />
+              <Play className="w-8 h-8 text-white ml-1" fill="white" />
             )}
           </button>
         )}
@@ -196,7 +196,7 @@ function PostNode({ data, selected }: NodeProps) {
 
       {/* Details Below Node */}
       {shouldShowInfo && (
-        <div className="absolute top-36 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-auto">
+        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-auto">
           {/* Author */}
           {data.authorName && (
             <div className="flex items-center gap-2 text-description font-source-sans text-white/80">
@@ -206,7 +206,7 @@ function PostNode({ data, selected }: NodeProps) {
 
           {/* Badges */}
           {data.types && data.types.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 justify-center max-w-xs">
+            <div className="flex gap-1.5 justify-center max-w-xs">
               {data.types.map((type: string) => {
                 const color = getBadgeColor(type);
                 return (
