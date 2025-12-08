@@ -26,6 +26,8 @@ import PublishDialog from '@/components/workspace/PublishDialog';
 import { ProjectChat } from '@/components/workspace/ProjectChat';
 import { usePresence } from '@/hooks/usePresence';
 import { useRealtimeTrackUpdates } from '@/hooks/useRealtimeTrackUpdates';
+import { useCursorTracking } from '@/hooks/useCursorTracking';
+import { Cursor } from '@/components/workspace/Cursor';
 import { toast } from "sonner";
 import { MessageSquare, Plus } from "lucide-react";
 
@@ -60,6 +62,11 @@ export default function WorkspacePage() {
   // Scrubbing state
   const timelineRef = useRef<HTMLDivElement>(null);
   const [isScrubbing, setIsScrubbing] = useState(false);
+
+  // Cursor ref
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  // Cursor tracking
+const { cursors, userColor } = useCursorTracking(projectId, user?.id || null, workspaceRef);
 
   // Track colors for waveforms
   const trackColors = [
@@ -498,7 +505,22 @@ export default function WorkspacePage() {
         />
 
         {/* Main workspace area */}
-        <div className="flex-1 flex flex-row overflow-hidden">
+        <div 
+          ref={workspaceRef}
+          className="flex-1 flex flex-row overflow-hidden relative"
+        >
+          {/* Render other users' cursors */}
+          {Array.from(cursors.values()).map((cursor) => (
+            <Cursor
+              key={cursor.userId}
+              x={cursor.x}
+              y={cursor.y}
+              name={cursor.name}
+              avatarUrl={cursor.avatarUrl}
+              color={cursor.color}
+            />
+          ))}
+
           {/* Left sidebar - Tracks with controls */}
           <div className="w-80 bg-[#d9c5a8] flex flex-col overflow-y-auto">
             <div className="flex flex-row justify-between items-center p-3 pb-2">
