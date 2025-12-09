@@ -23,7 +23,15 @@ export default function WaitlistPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-24 bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat">
+    <div
+      style={{
+        backgroundImage: "url('/bg.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat"
+      }}
+      className="min-h-screen flex flex-col items-center justify-center px-6 py-24"
+    >
       <div className="w-full max-w-3xl mx-auto text-center space-y-16">
         {/* Header Section */}
         <div className="space-y-6">
